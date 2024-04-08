@@ -18,7 +18,7 @@ if [[ `uname` == "Darwin" ]]; then
 elif [[ `uname` == "Linux" ]]; then
   export PATH=~/.local/bin:~/.local/go/bin:~/go/bin:~/.tfenv/bin:~/.local/n/bin:/home/krakowitzerm/.luarocks/bin/:~/cargo/bin:/usr/local/bin:~/.local/npm/bin:$PATH
   export GOPATH=~/.local/go
-  export GOBIN=~/$GOPATH/bin
+  export GOBIN=~/.local/bin
 fi
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
