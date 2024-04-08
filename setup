@@ -24,11 +24,6 @@ else
 fi
 
 git clone https://github.com/mkrakowitzer/dotfiles
-if [ -z "$VARIABLE" ]; then
-  echo "VARIABLE is unset or set to the empty string."
-else
-  echo "VARIABLE is set to a non-empty value."
-fi
 
 if [ -z ${PASSWD+x} ]; then
     ansible-playbook dotfiles/ansible/deployDev.yml --ask-become-pass
