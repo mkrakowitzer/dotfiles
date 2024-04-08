@@ -35,8 +35,9 @@
     owner: "{{ username }}"
     group: "{{ effective_group }}"
 
+- include_tasks: vale.yml
 # OS specific tasks
-#
+
 - include_tasks: tasks/debian.yml
   when: ansible_os_family == "Debian"
 
@@ -59,6 +60,7 @@
 - include_tasks: rust.yml
 - include_tasks: npm.yml
 - include_tasks: neovim.yml
+- include_tasks: vale.yml
 
 # Debian for now, MacOS later
 - include_tasks: yubikey.yml
