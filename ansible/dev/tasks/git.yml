@@ -1,4 +1,10 @@
 ---
+# https://pre-commit.com/
+- name: Install pre-commit
+  pip:
+    name: pre-commit
+    state: present
+
 - name: user.name for git config
   become_user: "{{ username }}"
   git_config:

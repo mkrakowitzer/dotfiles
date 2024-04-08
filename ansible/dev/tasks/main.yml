@@ -59,6 +59,7 @@
 - include_tasks: golang.yml
 - include_tasks: rust.yml
 - include_tasks: npm.yml
+- include_tasks: terraform.yml
 - include_tasks: neovim.yml
 - include_tasks: vale.yml
 
