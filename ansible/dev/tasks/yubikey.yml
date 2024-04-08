@@ -1,0 +1,33 @@
+---
+- name: Remove old versions of yubico-piv-tool
+  become: true
+  file:
+    path: "/tmp/yubico-piv-tool"
+    state: absent
+
+- name: Clone yubico-piv-tool
+  git:
+    repo: https://github.com/Yubico/yubico-piv-tool.git
+    dest: "/tmp/yubico-piv-tool"
+    depth: 1
+
+- name: Make build directory
+  file:
+    path: "/tmp/yubico-piv-tool/build"
+    state: directory
+
+- name: cmake yubico-piv-tool
+  command: cmake ..
+  args:
+    chdir: "/tmp/yubico-piv-tool/build"
+
+- name: make yubico-piv-tool
+  command: make
+  args:
+    chdir: "/tmp/yubico-piv-tool/build"
+
+- name: Install yubico-piv-tool
+  command: make install
+  args:
+    chdir: "/tmp/yubico-piv-tool/build"
+  become: true

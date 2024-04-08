@@ -1,0 +1,4 @@
+---
+- hosts: localhost
+  roles:
+    - ~/personal/dotfiles/ansible/dev

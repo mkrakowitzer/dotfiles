@@ -1,0 +1,34 @@
+---
+- name: Remove old golang
+  file:
+    path: "{{ ansible_env.HOME }}/.local/go"
+    state: absent
+  become: yes
+
+- name: Get the Go versions information
+  uri:
+    url: "https://go.dev/dl/?mode=json"
+    method: GET
+    return_content: yes
+    headers:
+      Accept: "application/json"
+  register: go_versions_response  # Correctly placed at the task level
+  failed_when: go_versions_response.status != 200  # Correctly placed at the task level
+
+- name: Set the latest stable Go version as a fact
+  set_fact:
+    golang_version: "{{ (go_versions_response.json | selectattr('stable', 'equalto', true) | first).version }}"
+
+- name: Download golang binary
+  get_url:
+    url: "https://golang.org/dl/{{ golang_version }}.{{ ansible_system | lower }}-{{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}.tar.gz"
+    dest: "/tmp/{{ golang_version }}.{{ ansible_system | lower }}-{{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}.tar.gz"
+    mode: 0644
+
+- name: Uncompress Golang binary
+  unarchive:
+    src: "/tmp/{{ golang_version }}.{{ ansible_system | lower }}-{{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}.tar.gz"
+    dest: ~/.local
+    remote_src: yes
+    creates: ~/.local/go
+    mode: 0755

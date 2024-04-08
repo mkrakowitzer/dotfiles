@@ -1,0 +1,20 @@
+- name: Git clone tfenv
+  git:
+    repo: https://github.com/tfutils/tfenv.git ~/.tfenv
+    version: master
+    depth: 1
+
+- name: Create tfenv symlink
+  file:
+    src: ~/.tfenv/bin/tfenv
+    dest: /.local/bin/tfenv
+    state: link
+
+- name: Create terraform symlink
+  file:
+    src: ~/.tfenv/bin/terraform
+    dest: /.local/bin/terraform
+    state: link
+
+- name: Install terraform
+  command: tfenv install 1.7

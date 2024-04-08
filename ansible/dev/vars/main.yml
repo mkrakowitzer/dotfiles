@@ -1,0 +1,54 @@
+---
+username: "krakowitzerm"
+group: "krakowitzerm"
+macos_group: "staff"
+email: "merritt@krakowitzer.com"
+gitusername: "Merritt Krakowitzer"
+ssh_key_filename: "id_rsa"
+personal: "~/personal"
+yq_version: "v4.43.1"
+kubectl_version: "v1.27.11"
+helm_version: "v3.14.3"
+kind_version: "v0.22.0"
+debian_packages:
+  - build-essential
+  - lua5.1
+  - liblua5.1-0-dev
+  - fontconfig
+  - python3-pip
+  - ninja-build
+  - cmake
+  - libpcsclite-dev
+  - libtool
+  - libssl-dev
+  - pkg-config
+  - check
+  - libpcsclite-dev
+  - gengetopt
+  - help2man
+  - python3.10-venv
+
+redhat_packages:
+  - "@Development Tools"
+  - util-linux-user
+  - fontconfig
+  - cmake
+macos_packages:
+  - gnu-sed
+  - gnu-tar
+  - homebrew/cask/cmake
+common_packages:
+  - git
+  - zsh
+  - tmux
+  - vim
+  - curl
+  - ripgrep
+  - wget
+  - htop
+  - tree
+  - jq
+  - gettext
+  - unzip
+  - luarocks
+  - shellcheck

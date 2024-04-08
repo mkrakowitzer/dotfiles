@@ -1,0 +1,94 @@
+---
+- name: Remove old versions of neovim
+  become: true
+  file:
+    path: "/tmp/neovim"
+    state: absent
+
+- name: Clone neovim
+  git:
+    repo: https://github.com/neovim/neovim.git
+    dest: "/tmp/neovim"
+    depth: 1
+    version: stable
+
+- name: Neovim Make
+  become: true
+  command: make CMAKE_BUILD_TYPE=Release install
+  args:
+    chdir: "/tmp/neovim"
+
+- name: Clone neovim config
+  git:
+    repo: https://github.com/mkrakowitzer/neovimrc.git
+    dest: "~/personal/nvim"
+
+- name: Remove old neovim config
+  file:
+    path: "~/.config/nvim"
+    state: absent
+
+- name: Create soft link
+  file:
+    src: "~/personal/nvim"
+    dest: "~/.config/nvim"
+    state: link
+
+- name: Install goimports
+  command: go install -v golang.org/x/tools/cmd/goimports@latest
+  environment:
+    PATH: "{{ ansible_env.HOME }}/.local/go/bin:{{ ansible_env.PATH }}"
+    GOBIN: "{{ ansible_env.HOME }}/.local/go/bin"
+
+- name: Install goimports-reviser
+  command: go install -v github.com/incu6us/goimports-reviser/v3@latest
+  environment:
+    PATH: "{{ ansible_env.HOME }}/.local/go/bin:{{ ansible_env.PATH }}"
+    GOBIN: "{{ ansible_env.HOME }}/.local/go/bin"
+
+- name: Install mdformat
+  command: pip3 install mdformat
+
+- name: Install yamllint
+  command: pip3 install yamllint
+
+- name: Create yamllint directory
+  file:
+    path: "~/.config/yamllint"
+    state: directory
+
+- name: Create yamllint config
+  file:
+    src: "~/personal/dotfiles/yamllint_config"
+    dest: "~/.config/yamllint/config"
+    state: link
+
+- name: Install fixjson
+  command: npm install -g fixjson
+  environment:
+    PATH: "{{ ansible_env.HOME }}/.local/n/bin:{{ ansible_env.PATH }}"
+
+- name: Install markdownlint-cl
+  command: npm install -g markdownlint-cli
+  environment:
+    PATH: "{{ ansible_env.HOME }}/.local/n/bin:{{ ansible_env.PATH }}"
+
+- name: Download yq
+  get_url:
+    url: https://github.com/mikefarah/yq/releases/download/{{ yq_version }}/yq_linux_amd64.tar.gz
+    dest: /tmp/yq{{ yq_version }}.tar.gz
+    mode: 0644
+
+- name: uncompress yq binary
+  unarchive:
+    src: /tmp/yq{{ yq_version }}.tar.gz
+    dest: ~/.local/bin
+    remote_src: yes
+    creates: ~/.local/bin/yq_linux_amd64
+    mode: 0755
+
+- name: create yq symlink
+  file:
+    src: ~/.local/bin/yq_linux_amd64
+    dest: ~/.local/bin/yq
+    state: link

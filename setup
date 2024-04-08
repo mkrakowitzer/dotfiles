@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+
+# This should skip prompting for sudo if the password is already cached
+if [ -f ~/tmppassword ]; then
+    PASSWD=$(cat ~/tmppassword)
+    echo "$PASSWD" | sudo -S echo "Password correct"
+fi
+
+if grep -qEi "(debian|ubuntu)" /etc/os-release; then
+    export DEBIAN_FRONTEND=noninteractive
+    sudo apt-get update
+    sudo apt-get install -y software-properties-common
+    sudo add-apt-repository --yes --update ppa:ansible/ansible
+    sudo apt-get install -y ansible git
+elif grep -qEi "(rhel|centos|fedora)" /etc/os-release; then
+    sudo yum -y install ansible git
+elif [ "$(uname -s)" == 'Darwin' ]; then
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    echo 'eval $(/opt/homebrew/bin/brew shellenv)' >> "$HOME/.zprofile"
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+    brew install ansible git
+else
+    echo "OS not identified."
+fi
+
+git clone https://github.com/mkrakowitzer/dotfiles
+if [ -z "$VARIABLE" ]; then
+  echo "VARIABLE is unset or set to the empty string."
+else
+  echo "VARIABLE is set to a non-empty value."
+fi
+
+if [ -z ${PASSWD+x} ]; then
+    ansible-playbook dotfiles/ansible/deployDev.yml --ask-become-pass
+else
+    ansible-playbook dotfiles/ansible/deployDev.yml -e ansible_become_pass="${PASSWD}"
+fi
+
+rm -f ~/tmppasswd

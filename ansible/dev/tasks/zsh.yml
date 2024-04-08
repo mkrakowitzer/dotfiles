@@ -1,0 +1,85 @@
+---
+- name: Set shell path for macOS
+  set_fact:
+    shell_path: "/opt/homebrew/bin/zsh"
+  when: ansible_os_family == "Darwin"
+
+- name: Set shell path for Linux
+  set_fact:
+    shell_path: "/usr/bin/zsh"
+  when: ansible_os_family == "RedHat" or ansible_os_family == "Debian"
+
+- name: Add shell to /etc/shells
+  lineinfile:
+    path: /etc/shells
+    line: "{{ shell_path }}"
+    state: present
+  become: yes
+  when: ansible_os_family == "Darwin"
+
+- name: Ensure zsh is the default shell
+  user:
+    name: "{{ username }}"
+    shell: "{{ shell_path }}"
+  become: yes
+
+- name: link zshrc
+  file:
+    src: "~/personal/dotfiles/zshrc"
+    dest: "~/.zshrc"
+    owner: "{{ username }}"
+    group: "{{ effective_group }}"
+    state: link
+
+- name: link p10k.zsh
+  file:
+    src: "~/personal/dotfiles/p10k.zsh"
+    dest: "~/.p10k.zsh"
+    owner: "{{ username }}"
+    group: "{{ effective_group }}"
+    state: link
+
+- name: cleanup Oh My Zsh install
+  command: rm -rf ~/.oh-my-zsh
+
+- name: Download Oh My Zsh installation script
+  get_url:
+    url: https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh
+    dest: /tmp/install_ohmyzsh.sh
+
+- name: Run Oh My Zsh installation script
+  command: sh /tmp/install_ohmyzsh.sh --unattended  --keep-zshrc
+  register: ohmyzsh_result
+  failed_when: "'FAILED' in ohmyzsh_result.stderr"
+
+- name: Clone powerldevl10k theme
+  git:
+    repo: https://github.com/romkatv/powerlevel10k.git
+    dest: "~/.oh-my-zsh/custom/themes/powerlevel10k"
+    update: yes
+    depth: 1
+
+- name: Set font directory based on OS type
+  set_fact:
+    font_dir: "{{ '~/Library/Fonts' if ansible_facts['os_family'] == 'Darwin' else '~/.fonts' }}"
+
+- name: Ensure font directory exists
+  file:
+    path: "{{ font_dir }}"
+    state: directory
+    owner: "{{ username }}"
+    group: "{{ effective_group }}"
+
+- name: Download Meslo Nerd Fonts
+  get_url:
+    url: "https://github.com/romkatv/powerlevel10k-media/raw/master/{{ item | replace(' ', '%20') }}.ttf"
+    dest: "{{ font_dir }}/{{ item | replace(' ', '_') }}.ttf"
+  loop:
+    - "MesloLGS NF Regular"
+    - "MesloLGS NF Bold"
+    - "MesloLGS NF Italic"
+    - "MesloLGS NF Bold Italic"
+
+- name: Reload font cache on Linux
+  command: fc-cache -f -v
+  when: ansible_system == 'Linux'

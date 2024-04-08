@@ -1,0 +1,4 @@
+- name: Install macos packages via brew
+  homebrew:
+    name: "{{ common_packages + macos_packages }}"
+    state: present

@@ -1,0 +1,5 @@
+- name: Install packages on Red Hat-based systems
+  yum:
+    name: "{{ common_packages + redhat_packages }}"
+    state: present
+  become: yes

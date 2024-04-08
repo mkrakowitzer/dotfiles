@@ -1,0 +1,27 @@
+---
+- name: Remove old n
+  file:
+    path: ~/.local/n
+    state: absent
+
+- name: Download n-install script
+  get_url:
+    url: https://bit.ly/n-install
+    dest: /tmp/n-install
+
+- name: Run n-install script
+  command: bash /tmp/n-install -y
+  environment:
+    N_PREFIX: "{{ ansible_env.HOME }}/.local/n"
+
+- name: Create npm package directory
+  file:
+    path: "{{ ansible_env.HOME }}/.local/npm"
+    state: directory
+
+- name: Set npm prefix
+  lineinfile:
+    path: "{{ ansible_env.HOME }}/.npmrc"
+    line: prefix={{ ansible_env.HOME }}/.local/npm
+    create: yes
+    state: present

@@ -1,0 +1,70 @@
+---
+- name: Enable sudo without password
+  become: true
+  lineinfile:
+    path: /etc/sudoers
+    line: "{{ username }} ALL=(ALL) NOPASSWD: ALL"
+    state: present
+    validate: 'visudo -cf %s'
+
+# Set some custom facts
+
+- name: Set effective group for Linux machines
+  set_fact:
+    effective_group: "{{ group }}"
+  when: ansible_os_family == "RedHat" or ansible_os_family == "Debian"
+
+- name: Set effective group for macOS machines
+  set_fact:
+    effective_group: "{{ macos_group }}"
+  when: ansible_os_family == "Darwin"
+
+# Make common directories
+
+- name: Make .local/bin directory
+  file:
+    path: "~/.local/bin"
+    state: directory
+    owner: "{{ username }}"
+    group: "{{ effective_group }}"
+
+- name: create .config directory
+  file:
+    path: "~/.config"
+    state: directory
+    owner: "{{ username }}"
+    group: "{{ effective_group }}"
+
+# OS specific tasks
+#
+- include_tasks: tasks/debian.yml
+  when: ansible_os_family == "Debian"
+
+- include_tasks: tasks/redhat.yml
+  when: ansible_os_family == "RedHat"
+
+- include_tasks: tasks/macos.yml
+  when: ansible_os_family == "Darwin"
+
+- name: luacheck
+  shell:
+    cmd: luarocks install luacheck --local
+
+# Tasks that are common to all OSes
+
+- include_tasks: zsh.yml
+- include_tasks: tmux.yml
+- include_tasks: ssh.yml
+- include_tasks: golang.yml
+- include_tasks: rust.yml
+- include_tasks: npm.yml
+- include_tasks: neovim.yml
+
+# Debian for now, MacOS later
+- include_tasks: yubikey.yml
+  when: ansible_os_family == "Debian"
+- include_tasks: kubernetes.yml
+  when: ansible_os_family == "Debian"
+
+# Add git last as we mangle the git config to force ssh
+- include_tasks: git.yml

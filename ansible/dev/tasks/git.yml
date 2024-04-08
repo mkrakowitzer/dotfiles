@@ -1,0 +1,26 @@
+---
+- name: user.name for git config
+  become_user: "{{ username }}"
+  git_config:
+    name: user.name
+    scope: global
+    value: "{{ gitusername }}"
+
+- name: user.email for git config
+  become_user: "{{ username }}"
+  git_config:
+    name: user.email
+    scope: global
+    value: "{{ email }}"
+
+- name: Set git to use SSH for GitHub
+  git_config:
+    name: "url.ssh://git@github.com/.insteadOf"
+    value: "https://github.com/"
+    scope: global
+
+- name: Set git to use SSH for GitLab
+  git_config:
+    name: "url.ssh://git@gitlab.com/.insteadOf"
+    value: "https://gitlab.com/"
+    scope: global

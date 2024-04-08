@@ -1,0 +1,13 @@
+---
+- name: Remove old rust
+  file:
+    path: ~/.cargo
+    state: absent
+
+- name: Download rust install script
+  get_url:
+    url: https://sh.rustup.rs
+    dest: /tmp/sh.rustup.rs
+
+- name: Run rust install script
+  command: bash /tmp/sh.rustup.rs -y

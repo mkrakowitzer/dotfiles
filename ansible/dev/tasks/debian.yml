@@ -1,0 +1,5 @@
+- name: Install packages on Debian-based systems
+  apt:
+    name: "{{ common_packages + debian_packages }}"
+    state: present
+  become: yes
