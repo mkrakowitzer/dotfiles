@@ -17,9 +17,9 @@
     state: link
 
 - name: Install terraform
-  command: tfenv install {items}
+  command: ~/.local/bin/tfenv install {items}
   with_items:
     - 1.7.5
 
 - name: Set terraform version to use
-  command: tfenv use 1.7.5
+  command: ~/.local/bin/tfenv use 1.7.5
