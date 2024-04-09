@@ -1,7 +1,9 @@
 ---
 - name: Install hugo
-  command: "{{ ansible_env.HOME }}/.local/go/bin/go install -tags extended github.com/gohugoio/hugo@latest"
+  command: "go install -tags extended github.com/gohugoio/hugo@latest"
   environment:
     CGO_ENABLED: "1"
+    PATH: "{{ ansible_env.HOME }}/.local/go/bin:{{ ansible_env.PATH }}"
+    GOBIN: "{{ ansible_env.HOME }}/.local/go/bin"
   args:
     creates: "{{ ansible_env.HOME }}/.local/go/bin/hugo"

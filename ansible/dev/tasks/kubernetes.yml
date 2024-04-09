@@ -55,9 +55,12 @@
   become: yes
 
 - name: Install kind
-  command: "{{ ansible_env.HOME }}/.local/go/bin/go install sigs.k8s.io/kind@{{ kind_version }}"
+  command: "go install sigs.k8s.io/kind@{{ kind_version }}"
   args:
     creates: "{{ ansible_env.HOME }}/.local/go/bin/kind"
+  environment:
+    PATH: "{{ ansible_env.HOME }}/.local/go/bin:{{ ansible_env.PATH }}"
+    GOBIN: "{{ ansible_env.HOME }}/.local/go/bin"
 
 # Docker Ubuntu
 - name: Download docker gpg
