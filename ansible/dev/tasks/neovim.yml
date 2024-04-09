@@ -39,12 +39,14 @@
   environment:
     PATH: "{{ ansible_env.HOME }}/.local/go/bin:{{ ansible_env.PATH }}"
     GOBIN: "{{ ansible_env.HOME }}/.local/go/bin"
+    GOPATH: "{{ ansible_env.HOME }}/.local/go"
 
 - name: Install goimports-reviser
   command: go install -v github.com/incu6us/goimports-reviser/v3@latest
   environment:
     PATH: "{{ ansible_env.HOME }}/.local/go/bin:{{ ansible_env.PATH }}"
     GOBIN: "{{ ansible_env.HOME }}/.local/go/bin"
+    GOPATH: "{{ ansible_env.HOME }}/.local/go"
 
 - name: Create yamllint directory
   file:
