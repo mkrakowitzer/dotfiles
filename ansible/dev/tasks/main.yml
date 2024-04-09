@@ -68,7 +68,6 @@
 - include_tasks: yubikey.yml
   when: ansible_os_family == "Debian"
 - include_tasks: kubernetes.yml
-  when: ansible_os_family == "Debian"
 
 # Add git last as we mangle the git config to force ssh
 - include_tasks: git.yml
