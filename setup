@@ -25,7 +25,9 @@ fi
 
 git clone https://github.com/mkrakowitzer/dotfiles
 
-if [ -z ${PASSWD+x} ]; then
+if sudo -ln | grep -q '(ALL) NOPASSWD: ALL'; then
+    ansible-playbook dotfiles/ansible/deployDev.yml
+elif [ -z ${PASSWD+x} ]; then
     ansible-playbook dotfiles/ansible/deployDev.yml --ask-become-pass
 else
     ansible-playbook dotfiles/ansible/deployDev.yml -e ansible_become_pass="${PASSWD}"
