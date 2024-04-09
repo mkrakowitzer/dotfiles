@@ -11,15 +11,18 @@ alias vi="nvim"
 alias oldvim="vim"
 export EDITOR=nvim
 
-# What OS are we running?
+# OS Specific setup
 if [[ `uname` == "Darwin" ]]; then
-  export PATH=$(brew --prefix openssh)/bin:$PATH
+  # use homebrew path last
+  export PATH=$PATH:$(brew --prefix openssh)/bin
   export GPG_TTY=$(tty)
-elif [[ `uname` == "Linux" ]]; then
-  export PATH=~/.local/bin:~/.local/go/bin:~/go/bin:~/.tfenv/bin:~/.local/n/bin:/home/krakowitzerm/.luarocks/bin/:~/cargo/bin:/usr/local/bin:~/.local/npm/bin:$PATH
-  export GOPATH=~/.local/go
-  export GOBIN=~/.local/bin
+#elif [[ `uname` == "Linux" ]]; then
+#
 fi
+
+export PATH=~/.local/bin:~/.local/go/bin:~/go/bin:~/.tfenv/bin:~/.local/n/bin:/home/krakowitzerm/.luarocks/bin/:~/cargo/bin:/usr/local/bin:~/.local/npm/bin:~/.local/python/bin:$PATH
+export GOPATH=~/.local/go
+export GOBIN=~/.local/bin
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh

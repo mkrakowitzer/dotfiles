@@ -12,8 +12,8 @@
     return_content: yes
     headers:
       Accept: "application/json"
-  register: go_versions_response  # Correctly placed at the task level
-  failed_when: go_versions_response.status != 200  # Correctly placed at the task level
+  register: go_versions_response
+  failed_when: go_versions_response.status != 200
 
 - name: Set the latest stable Go version as a fact
   set_fact:

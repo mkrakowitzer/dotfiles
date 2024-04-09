@@ -1,0 +1,62 @@
+---
+- name: Remove old python
+  file:
+    path: "{{ ansible_env.HOME }}/.local/python"
+    state: absent
+  become: yes
+
+- name: Get the python versions information
+  uri:
+    url: "https://endoflife.date/api/python.json"
+    method: GET
+    return_content: yes
+    headers:
+      Accept: "application/json"
+  register: python_versions_response
+  failed_when: python_versions_response.status != 200
+
+- name: Set the latest Python version as a fact
+  set_fact:
+    # first should be the latest
+    python_version: "{{ python_versions_response.json[0].latest }}"
+
+- name: Download python tar file
+  get_url:
+    url: "https://www.python.org/ftp/python/{{ python_version }}/Python-{{ python_version }}.tgz"
+    dest: "/tmp"
+    mode: 0644
+
+- name: Remove old python tmp install
+  file:
+    path: /tmp/Python-{{ python_version }}
+    state: absent
+  become: yes
+
+- name: Uncompress Python source
+  unarchive:
+    src: "/tmp/Python-{{ python_version }}.tgz"
+    dest: /tmp
+    remote_src: yes
+    creates: /tmp/Python-{{ python_version }}
+    mode: 0755
+
+- name: Configure Python
+  command: ./configure --prefix={{ ansible_env.HOME }}/.local/python
+  args:
+    chdir: /tmp/Python-{{ python_version }}
+
+- name: Make Python-{{ python_version }}
+  command: make -j 4
+  args:
+    chdir: /tmp/Python-{{ python_version }}
+
+- name: Install Python-{{ python_version }}
+  command: make install
+  args:
+    chdir: /tmp/Python-{{ python_version }}
+
+- name: Link pip3 to pip
+  file:
+    src: "{{ ansible_env.HOME }}/.local/python/bin/pip3"
+    dest: "{{ ansible_env.HOME }}/.local/python/bin/pip"
+    state: link

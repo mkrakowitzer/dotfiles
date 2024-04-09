@@ -17,6 +17,7 @@
   vars:
     arch_map:
       x86_64: "64-bit"
+      arm64: "arm64"
   get_url:
     url: "https://github.com/errata-ai/vale/releases/download/{{ vale_version }}/vale_{{ vale_version | regex_replace('^v', '') }}_Linux_{{ arch_map[ansible_architecture] }}.tar.gz"
     dest: "/tmp"
@@ -26,6 +27,7 @@
   vars:
     arch_map:
       x86_64: "64-bit"
+      arm64: "arm64"
   unarchive:
     src: "/tmp/vale_{{ vale_version | regex_replace('^v', '') }}_Linux_{{ arch_map[ansible_architecture] }}.tar.gz"
     dest: "~/.local/bin"

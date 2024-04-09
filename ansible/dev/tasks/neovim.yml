@@ -46,12 +46,6 @@
     PATH: "{{ ansible_env.HOME }}/.local/go/bin:{{ ansible_env.PATH }}"
     GOBIN: "{{ ansible_env.HOME }}/.local/go/bin"
 
-- name: Install mdformat
-  command: pip3 install mdformat
-
-- name: Install yamllint
-  command: pip3 install yamllint
-
 - name: Create yamllint directory
   file:
     path: "~/.config/yamllint"
@@ -62,6 +56,14 @@
     src: "~/personal/dotfiles/yamllint_config"
     dest: "~/.config/yamllint/config"
     state: link
+
+- name: Install yamllint and mdformat
+  pip:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - yamllint
+    - mdformat
 
 - name: Install fixjson
   command: npm install -g fixjson

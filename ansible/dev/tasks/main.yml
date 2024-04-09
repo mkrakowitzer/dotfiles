@@ -35,7 +35,6 @@
     owner: "{{ username }}"
     group: "{{ effective_group }}"
 
-#- include_tasks: vale.yml
 # OS specific tasks
 
 - include_tasks: tasks/debian.yml
@@ -59,6 +58,7 @@
 - include_tasks: golang.yml
 - include_tasks: rust.yml
 - include_tasks: npm.yml
+- include_tasks: python.yml
 - include_tasks: terraform.yml
 - include_tasks: neovim.yml
 - include_tasks: vale.yml

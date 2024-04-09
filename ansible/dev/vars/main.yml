@@ -15,7 +15,7 @@ debian_packages:
   - lua5.1
   - liblua5.1-0-dev
   - fontconfig
-  - python3-pip
+#  - python3-pip
   - ninja-build
   - cmake
   - libpcsclite-dev
@@ -26,13 +26,30 @@ debian_packages:
   - libpcsclite-dev
   - gengetopt
   - help2man
-  - python3.10-venv
+#  - python3.10-venv
+  - make
+  - zlib1g-dev
+  - libbz2-dev
+  - libreadline-dev
+  - libsqlite3-dev
+  - llvm
+  - libncurses5-dev
+  - libncursesw5-dev
+  - xz-utils
+  - tk-dev
+  - liblzma-dev
 
 redhat_packages:
   - "@Development Tools"
   - util-linux-user
   - fontconfig
   - cmake
+  - openssl-devel
+  - bzip2-devel
+  - libffi-devel
+  - xz-devel
+  - tk-devel
+
 macos_packages:
   - gnu-sed
   - gnu-tar
