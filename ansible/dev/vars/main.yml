@@ -37,6 +37,7 @@ macos_packages:
   - gnu-sed
   - gnu-tar
   - homebrew/cask/cmake
+  - grep
 common_packages:
   - git
   - zsh

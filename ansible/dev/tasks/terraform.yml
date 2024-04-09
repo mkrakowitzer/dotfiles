@@ -16,10 +16,12 @@
     dest: ~/.local/bin/terraform
     state: link
 
-- name: Install terraform
-  command: ~/.local/bin/tfenv install {items}
-  with_items:
-    - 1.7.5
+- name: Install terraform versions with tfenv
+  command: ~/.local/bin/tfenv install {{ item }}
+  loop:
+    - "1.7.5"
 
 - name: Set terraform version to use
-  command: ~/.local/bin/tfenv use 1.7.5
+  command: ~/.local/bin/tfenv use {{ item }}
+  loop:
+    - "1.7.5"
