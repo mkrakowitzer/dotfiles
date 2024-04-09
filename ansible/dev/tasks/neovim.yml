@@ -61,6 +61,8 @@
   pip:
     name: "{{ item }}"
     state: present
+  environment:
+    PATH: "{{ ansible_env.HOME }}/.local/python/bin"
   with_items:
     - yamllint
     - mdformat
