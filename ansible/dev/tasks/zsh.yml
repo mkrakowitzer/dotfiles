@@ -27,16 +27,25 @@
   file:
     src: "~/personal/dotfiles/zshrc"
     dest: "~/.zshrc"
-    owner: "{{ username }}"
-    group: "{{ effective_group }}"
     state: link
 
 - name: link p10k.zsh
   file:
     src: "~/personal/dotfiles/p10k.zsh"
     dest: "~/.p10k.zsh"
+    state: link
+
+- name: Ensure wezterm config directory exists
+  file:
+    path: "~/.config/wezterm"
+    state: directory
     owner: "{{ username }}"
     group: "{{ effective_group }}"
+
+- name: link wezterm config
+  file:
+    src: "~/personal/dotfiles/wezterm.lua"
+    dest: "~/.config/wezterm/wezterm.lua"
     state: link
 
 - name: cleanup Oh My Zsh install

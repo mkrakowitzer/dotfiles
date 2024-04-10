@@ -53,8 +53,11 @@ redhat_packages:
 macos_packages:
   - gnu-sed
   - gnu-tar
-  - homebrew/cask/cmake
   - grep
+  - homebrew/cask/cmake
+  - homebrew/cask/wezterm
+  # - homebrew/cask/karabiner-elements
+  # - homebrew/cask/iterm2
 
 common_packages:
   - git

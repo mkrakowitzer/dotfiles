@@ -40,10 +40,32 @@
     creates: /tmp/Python-{{ python_version }}
     mode: 0755
 
-- name: Configure Python
+- name: Configure Python (Linux)
   command: ./configure --prefix={{ ansible_env.HOME }}/.local/python
   args:
     chdir: /tmp/Python-{{ python_version }}
+  when: ansible_system == "Linux"
+
+- name: Get openssl@3.0 prefix
+  command: brew --prefix openssl@3.0
+  register: openssl_prefix
+  when: ansible_system == "Darwin"
+  changed_when: false
+
+- name: Get gdbm prefix
+  command: brew --prefix gdbm
+  register: gdbm_prefix
+  when: ansible_system == "Darwin"
+  changed_when: false
+
+- name: Configure Python (Darwin)
+  command: ./configure --prefix={{ ansible_env.HOME }}/.local/python --with-openssl="{{ openssl_prefix.stdout }}"
+  args:
+    chdir: /tmp/Python-{{ python_version }}
+  environment:
+    GDBM_CFLAGS: "-I{{ gdbm_prefix.stdout }}/include"
+    GDBM_LIBS: "-L{{ gdbm_prefix.stdout }}/lib -lgdbm"
+  when: ansible_system == "Darwin"
 
 - name: Make Python-{{ python_version }}
   command: make -j 4
