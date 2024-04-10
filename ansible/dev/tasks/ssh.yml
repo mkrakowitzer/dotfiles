@@ -6,7 +6,7 @@
     mode: '0755'
 
 - name: generate SSH key "id_rsa"
-  openssh_keypair:
+  community.crypto.openssh_keypair:
     path: "~/.ssh/id_rsa"
     type: rsa
     size: 4096

@@ -15,7 +15,6 @@ debian_packages:
   - lua5.1
   - liblua5.1-0-dev
   - fontconfig
-#  - python3-pip
   - ninja-build
   - cmake
   - libpcsclite-dev
@@ -26,7 +25,6 @@ debian_packages:
   - libpcsclite-dev
   - gengetopt
   - help2man
-#  - python3.10-venv
   - make
   - zlib1g-dev
   - libbz2-dev
@@ -49,24 +47,27 @@ redhat_packages:
   - libffi-devel
   - xz-devel
   - tk-devel
+  - ansible-collection-community-crypto
+  - lua5.1
 
 macos_packages:
   - gnu-sed
   - gnu-tar
   - homebrew/cask/cmake
   - grep
+
 common_packages:
   - git
   - zsh
   - tmux
   - vim
   - curl
-  - ripgrep
   - wget
-  - htop
   - tree
   - jq
   - gettext
   - unzip
   - luarocks
+  - htop
+  - ripgrep
   - shellcheck

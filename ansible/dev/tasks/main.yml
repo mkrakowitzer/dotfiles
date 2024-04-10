@@ -49,6 +49,8 @@
 - name: luacheck
   shell:
     cmd: luarocks install luacheck --local
+  # LUA EPEL luarocks is poked
+  when: ansible_os_family != "RedHat"
 
 # Tasks that are common to all OSes
 

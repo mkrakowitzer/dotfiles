@@ -13,7 +13,8 @@ if grep -qEi "(debian|ubuntu)" /etc/os-release; then
     sudo add-apt-repository --yes --update ppa:ansible/ansible
     sudo apt-get install -y ansible git
 elif grep -qEi "(rhel|centos|fedora)" /etc/os-release; then
-    sudo yum -y install ansible git
+    sudo dnf -y install ansible-core git
+    ansible-galaxy collection install community.general
 elif [ "$(uname -s)" == 'Darwin' ]; then
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     echo 'eval $(/opt/homebrew/bin/brew shellenv)' >> "$HOME/.zprofile"

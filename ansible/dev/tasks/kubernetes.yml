@@ -104,7 +104,8 @@
 
 # Docker MacOS
 - name: Install docker
-  homebrew:
+  community.general.homebrew:
     name: homebrew/cask/docker
     state: present
   when: ansible_distribution == 'MacOSX'
+
