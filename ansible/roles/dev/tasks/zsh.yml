@@ -28,12 +28,14 @@
     src: "~/personal/dotfiles/zshrc"
     dest: "~/.zshrc"
     state: link
+    force: true
 
 - name: link p10k.zsh
   file:
     src: "~/personal/dotfiles/p10k.zsh"
     dest: "~/.p10k.zsh"
     state: link
+    force: true
 
 - name: Ensure wezterm config directory exists
   file:

@@ -18,8 +18,11 @@
     arch_map:
       x86_64: "64-bit"
       arm64: "arm64"
+    system_map:
+      Linux: "Linux"
+      Darwin: "macOS"
   get_url:
-    url: "https://github.com/errata-ai/vale/releases/download/{{ vale_version }}/vale_{{ vale_version | regex_replace('^v', '') }}_Linux_{{ arch_map[ansible_architecture] }}.tar.gz"
+    url: "https://github.com/errata-ai/vale/releases/download/{{ vale_version }}/vale_{{ vale_version | regex_replace('^v', '') }}_{{ system_map[ansible_system] }}_{{ arch_map[ansible_architecture] }}.tar.gz"
     dest: "/tmp"
     mode: 0644
 
@@ -28,7 +31,11 @@
     arch_map:
       x86_64: "64-bit"
       arm64: "arm64"
+    system_map:
+      Linux: "Linux"
+      Darwin: "macOS"
+
   unarchive:
-    src: "/tmp/vale_{{ vale_version | regex_replace('^v', '') }}_Linux_{{ arch_map[ansible_architecture] }}.tar.gz"
+    src: "/tmp/vale_{{ vale_version | regex_replace('^v', '') }}_{{ system_map[ansible_system] }}_{{ system_map[ansible_system] }}_{{ arch_map[ansible_architecture] }}.tar.gz"
     dest: "~/.local/bin"
     remote_src: yes
