@@ -44,9 +44,9 @@
     value: "ssh"
     scope: global
 
-- name: Set allowed signers allowed
+- name: Set allowed signers
   git_config:
-    name: "gpg.ssh.allowedSigners"
+    name: "gpg.ssh.allowedSignersFile"
     value: "~/.ssh/allowed_signers"
     scope: global
 
