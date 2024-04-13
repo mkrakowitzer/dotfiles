@@ -55,3 +55,9 @@
     name: "user.signingKey"
     value: "~/.ssh/id_ed25519_sk_rk"
     scope: global
+
+- name: Set commit.gpgsign
+  git_config:
+    name: "commit.gpgSign"
+    value: "true"
+    scope: global
