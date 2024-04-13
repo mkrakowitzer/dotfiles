@@ -3,12 +3,63 @@
   file:
     path: "~/.ssh"
     state: directory
-    mode: '0755'
+    mode: '0750'
 
-- name: generate SSH key "id_rsa"
-  community.crypto.openssh_keypair:
-    path: "~/.ssh/id_rsa"
-    type: rsa
-    size: 4096
-    state: present
-    force: no
+- name: Remove old versions of openssh git
+  become: true
+  file:
+    path: "/tmp/openssh-portable"
+    state: absent
+
+- name: Remove old versions of openssh install
+  become: true
+  file:
+    path: "{{ ansible_env.HOME }}/.local/openssh"
+    state: absent
+
+- name: Clone openssh
+  git:
+    repo: https://github.com/openssh/openssh-portable.git
+    dest: "/tmp/openssh-portable"
+    depth: 1
+    version: "V_9_2_P1"
+
+- name: Download patch https://bugzilla.mindrot.org/show_bug.cgi?id=3355
+  get_url:
+    url: "https://bugzilla.mindrot.org/attachment.cgi?id=3682"
+    dest: "/tmp/openssh-portable/3682.patch"
+
+- name: Apply patch 3682
+  shell: patch -p1 < 3682.patch
+  args:
+    chdir: "/tmp/openssh-portable"
+
+- name: Download patch https://bugzilla.mindrot.org/show_bug.cgi?id=3355
+  get_url:
+    url: "https://bugzilla.mindrot.org/attachment.cgi?id=3683"
+    dest: "/tmp/openssh-portable/3683.patch"
+
+- name: Apply patch
+  shell: patch -p1 < 3683.patch
+  args:
+    chdir: "/tmp/openssh-portable"
+
+- name: autoreconf
+  command: autoreconf
+  args:
+    chdir: "/tmp/openssh-portable"
+
+- name: openssh configure
+  shell: ./configure LDFLAGS=-L/opt/homebrew/lib/ CFLAGS="-I/opt/homebrew/include" --prefix=/Users/krakowitzerm/.local/openssh
+  args:
+    chdir: "/tmp/openssh-portable"
+
+- name: openssh make
+  command: make
+  args:
+    chdir: "/tmp/openssh-portable"
+
+- name: openssh make install
+  command: make install
+  args:
+    chdir: "/tmp/openssh-portable"

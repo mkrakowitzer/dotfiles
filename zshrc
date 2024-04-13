@@ -20,7 +20,7 @@ if [[ `uname` == "Darwin" ]]; then
 #
 fi
 
-export PATH=~/.local/bin:~/.local/go/bin:~/go/bin:~/.tfenv/bin:~/.local/n/bin:/home/krakowitzerm/.luarocks/bin/:~/cargo/bin:/usr/local/bin:~/.local/npm/bin:~/.local/python/bin:$PATH
+export PATH=~/.local/bin:~/.local/go/bin:~/go/bin:~/.tfenv/bin:~/.local/n/bin:/home/krakowitzerm/.luarocks/bin/:~/cargo/bin:/usr/local/bin:~/.local/npm/bin:~/.local/python/bin:~/.local/openssh/bin:$PATH
 export GOPATH=~/.local/go
 export GOBIN=~/.local/bin
 

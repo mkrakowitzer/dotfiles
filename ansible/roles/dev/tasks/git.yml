@@ -4,8 +4,7 @@
   pip:
     name: pre-commit
     state: present
-  environment:
-    PATH: "{{ ansible_env.HOME }}/.local/python/bin"
+    executable: "{{ ansible_env.HOME }}/.local/python/bin/pip"
 
 - name: user.name for git config
   become_user: "{{ username }}"
@@ -33,8 +32,26 @@
     value: "https://gitlab.com/"
     scope: global
 
+- name: Sign tags with ssh
+  git_config:
+    name: "tag.gpgSign"
+    value: "true"
+    scope: global
+
 - name: Sign commits with ssh
   git_config:
     name: "gpg.format"
     value: "ssh"
+    scope: global
+
+- name: Set allowed signers allowed
+  git_config:
+    name: "gpg.ssh.allowedSigners"
+    value: "~/.ssh/allowed_signers"
+    scope: global
+
+- name: Set signingkey
+  git_config:
+    name: "user.signingKey"
+    value: "~/.ssh/id_ed25519_sk_rk"
     scope: global

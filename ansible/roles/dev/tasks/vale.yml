@@ -36,6 +36,6 @@
       Darwin: "macOS"
 
   unarchive:
-    src: "/tmp/vale_{{ vale_version | regex_replace('^v', '') }}_{{ system_map[ansible_system] }}_{{ system_map[ansible_system] }}_{{ arch_map[ansible_architecture] }}.tar.gz"
+    src: "/tmp/vale_{{ vale_version | regex_replace('^v', '') }}_{{ system_map[ansible_system] }}_{{ arch_map[ansible_architecture] }}.tar.gz"
     dest: "~/.local/bin"
     remote_src: yes

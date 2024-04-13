@@ -54,8 +54,14 @@ macos_packages:
   - gnu-sed
   - gnu-tar
   - grep
+  - check
+  - openssh
+  - gengetopt
+  - autoconf
+  - automake
   - homebrew/cask/cmake
   - homebrew/cask/wezterm
+  - help2man
   # - homebrew/cask/karabiner-elements
   # - homebrew/cask/iterm2
 

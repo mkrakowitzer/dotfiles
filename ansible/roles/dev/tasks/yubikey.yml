@@ -31,3 +31,12 @@
   args:
     chdir: "/tmp/yubico-piv-tool/build"
   become: true
+
+- name: Install solokey packages
+  pip:
+    name: "{{ item }}"
+    state: present
+    executable: "{{ ansible_env.HOME }}/.local/python/bin/pip"
+  with_items:
+    - "solo1"
+    - "fido2==0.9.3"

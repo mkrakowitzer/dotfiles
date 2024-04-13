@@ -65,11 +65,8 @@
 - include_tasks: neovim.yml
 - include_tasks: vale.yml
 - include_tasks: hugo.yml
-
-# Debian for now, MacOS later
-- include_tasks: yubikey.yml
-  when: ansible_os_family == "Debian"
 - include_tasks: kubernetes.yml
+- include_tasks: yubikey.yml
 
 # Add git last as we mangle the git config to force ssh
 - include_tasks: git.yml
