@@ -1,65 +1,65 @@
 ---
 - name: Remove old python
-  file:
+  ansible.builtin.file:
     path: "{{ ansible_env.HOME }}/.local/python"
     state: absent
-  become: yes
+  become: true
 
 - name: Get the python versions information
-  uri:
+  ansible.builtin.uri:
     url: "https://endoflife.date/api/python.json"
     method: GET
-    return_content: yes
+    return_content: true
     headers:
       Accept: "application/json"
   register: python_versions_response
   failed_when: python_versions_response.status != 200
 
 - name: Set the latest Python version as a fact
-  set_fact:
+  ansible.builtin.set_fact:
     # first should be the latest
     python_version: "{{ python_versions_response.json[0].latest }}"
 
 - name: Download python tar file
-  get_url:
+  ansible.builtin.get_url:
     url: "https://www.python.org/ftp/python/{{ python_version }}/Python-{{ python_version }}.tgz"
     dest: "/tmp"
     mode: 0644
 
 - name: Remove old python tmp install
-  file:
+  ansible.builtin.file:
     path: /tmp/Python-{{ python_version }}
     state: absent
-  become: yes
+  become: true
 
 - name: Uncompress Python source
-  unarchive:
+  ansible.builtin.unarchive:
     src: "/tmp/Python-{{ python_version }}.tgz"
     dest: /tmp
-    remote_src: yes
+    remote_src: true
     creates: /tmp/Python-{{ python_version }}
     mode: 0755
 
 - name: Configure Python (Linux)
-  command: ./configure --prefix={{ ansible_env.HOME }}/.local/python
+  ansible.builtin.command: ./configure --prefix={{ ansible_env.HOME }}/.local/python
   args:
     chdir: /tmp/Python-{{ python_version }}
   when: ansible_system == "Linux"
 
 - name: Get openssl@3.0 prefix
-  command: brew --prefix openssl@3.0
+  ansible.builtin.command: brew --prefix openssl@3.0
   register: openssl_prefix
   when: ansible_system == "Darwin"
   changed_when: false
 
 - name: Get gdbm prefix
-  command: brew --prefix gdbm
+  ansible.builtin.command: brew --prefix gdbm
   register: gdbm_prefix
   when: ansible_system == "Darwin"
   changed_when: false
 
 - name: Configure Python (Darwin)
-  command: ./configure --prefix={{ ansible_env.HOME }}/.local/python --with-openssl="{{ openssl_prefix.stdout }}"
+  ansible.builtin.command: ./configure --prefix={{ ansible_env.HOME }}/.local/python --with-openssl="{{ openssl_prefix.stdout }}"
   args:
     chdir: /tmp/Python-{{ python_version }}
   environment:
@@ -68,17 +68,17 @@
   when: ansible_system == "Darwin"
 
 - name: Make Python-{{ python_version }}
-  command: make -j 4
+  ansible.builtin.command: make -j 4
   args:
     chdir: /tmp/Python-{{ python_version }}
 
 - name: Install Python-{{ python_version }}
-  command: make install
+  ansible.builtin.command: make install
   args:
     chdir: /tmp/Python-{{ python_version }}
 
 - name: Link pip3 to pip
-  file:
+  ansible.builtin.file:
     src: "{{ ansible_env.HOME }}/.local/python/bin/pip3"
     dest: "{{ ansible_env.HOME }}/.local/python/bin/pip"
     state: link

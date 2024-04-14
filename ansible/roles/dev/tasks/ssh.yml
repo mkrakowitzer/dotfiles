@@ -1,65 +1,94 @@
 ---
 - name: "Create .ssh"
-  file:
+  ansible.builtin.file:
     path: "~/.ssh"
     state: directory
     mode: '0750'
 
 - name: Remove old versions of openssh git
   become: true
-  file:
+  ansible.builtin.file:
     path: "/tmp/openssh-portable"
     state: absent
 
 - name: Remove old versions of openssh install
   become: true
-  file:
+  ansible.builtin.file:
     path: "{{ ansible_env.HOME }}/.local/openssh"
     state: absent
 
 - name: Clone openssh
-  git:
+  ansible.builtin.git:
     repo: https://github.com/openssh/openssh-portable.git
     dest: "/tmp/openssh-portable"
     depth: 1
     version: "V_9_2_P1"
 
 - name: Download patch https://bugzilla.mindrot.org/show_bug.cgi?id=3355
-  get_url:
+  ansible.builtin.get_url:
     url: "https://bugzilla.mindrot.org/attachment.cgi?id=3682"
     dest: "/tmp/openssh-portable/3682.patch"
+    mode: '0644'
+
+#  - name: Apply patch 3682
+#    ansible.posix.patch:
+#      basedir: "/tmp/openssh-portable"
+#      src: "/tmp/openssh-portable/3682.patch"
+#      remote_src: true
 
 - name: Apply patch 3682
-  shell: patch -p1 < 3682.patch
+  ansible.builtin.shell: patch -p1 < 3682.patch
   args:
     chdir: "/tmp/openssh-portable"
+  changed_when: false
 
 - name: Download patch https://bugzilla.mindrot.org/show_bug.cgi?id=3355
-  get_url:
+  ansible.builtin.get_url:
     url: "https://bugzilla.mindrot.org/attachment.cgi?id=3683"
     dest: "/tmp/openssh-portable/3683.patch"
+    mode: '0644'
+
+# - name: Apply patch 3683
+#   ansible.posix.patch:
+#     basedir: "/tmp/openssh-portable"
+#     src: "/tmp/openssh-portable/3683.patch"
+#     remote_src: true
 
 - name: Apply patch
-  shell: patch -p1 < 3683.patch
+  ansible.builtin.shell: patch -p1 < 3683.patch
   args:
     chdir: "/tmp/openssh-portable"
 
-- name: autoreconf
-  command: autoreconf
+- name: Run autoreconf
+  ansible.builtin.command: autoreconf
   args:
     chdir: "/tmp/openssh-portable"
+  changed_when: false
 
-- name: openssh configure
-  shell: ./configure LDFLAGS=-L/opt/homebrew/lib/ CFLAGS="-I/opt/homebrew/include" --prefix=/Users/krakowitzerm/.local/openssh
+- name: Configure openssh source for build
+  # Flags paths will just be ignored if they don't exist
+  ansible.builtin.shell: "./configure LDFLAGS=-L/opt/homebrew/lib CFLAGS=-I/opt/homebrew/include --prefix={{ ansible_env.HOME }}//.local/openssh"
   args:
     chdir: "/tmp/openssh-portable"
+  changed_when: false
 
-- name: openssh make
-  command: make
+- name: Build openssh from source
+  ansible.builtin.command: make
   args:
     chdir: "/tmp/openssh-portable"
+  changed_when: false
 
-- name: openssh make install
-  command: make install
+- name: Make /var/empty
+  become: true
+  ansible.builtin.file:
+    path: "/var/empty"
+    state: directory
+    owner: "root"
+    group: "root"
+    mode: '755'
+
+- name: Install openssh
+  ansible.builtin.command: make install
   args:
     chdir: "/tmp/openssh-portable"
+  changed_when: false

@@ -1,16 +1,16 @@
 ---
-username: "krakowitzerm"
-group: "krakowitzerm"
-macos_group: "staff"
-email: "merritt@krakowitzer.com"
-gitusername: "Merritt Krakowitzer"
-ssh_key_filename: "id_rsa"
-personal: "~/personal"
-yq_version: "v4.43.1"
-kubectl_version: "v1.27.11"
-helm_version: "v3.14.3"
-kind_version: "v0.22.0"
-debian_packages:
+dev_username: "krakowitzerm"
+dev_group: "krakowitzerm"
+dev_macos_group: "staff"
+dev_email: "merritt@krakowitzer.com"
+dev_gitusername: "Merritt Krakowitzer"
+dev_ssh_key_filename: "id_rsa"
+dev_personal: "~/personal"
+dev_yq_version: "v4.43.1"
+dev_kubectl_version: "v1.27.11"
+dev_helm_version: "v3.14.3"
+dev_kind_version: "v0.22.0"
+dev_debian_packages:
   - build-essential
   - lua5.1
   - liblua5.1-0-dev
@@ -37,7 +37,7 @@ debian_packages:
   - tk-dev
   - liblzma-dev
 
-redhat_packages:
+dev_redhat_packages:
   - "@Development Tools"
   - util-linux-user
   - fontconfig
@@ -50,7 +50,7 @@ redhat_packages:
   - ansible-collection-community-crypto
   - lua5.1
 
-macos_packages:
+dev_macos_packages:
   - gnu-sed
   - gnu-tar
   - grep
@@ -65,7 +65,7 @@ macos_packages:
   # - homebrew/cask/karabiner-elements
   # - homebrew/cask/iterm2
 
-common_packages:
+dev_common_packages:
   - git
   - zsh
   - tmux

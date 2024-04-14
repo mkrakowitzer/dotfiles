@@ -1,16 +1,16 @@
 ---
 - name: Get the vale versions information
-  uri:
+  ansible.builtin.uri:
     url: https://api.github.com/repos/errata-ai/vale/releases/latest
     method: GET
-    return_content: yes
+    return_content: true
     headers:
       Accept: application/vnd.github.v3+json
   register: vale_versions_response
   failed_when: vale_versions_response.status != 200
 
 - name: Set the latest stable vale version as a fact
-  set_fact:
+  ansible.builtin.set_fact:
     vale_version: "{{ vale_versions_response.json.tag_name }}"
 
 - name: Download vale
@@ -21,7 +21,7 @@
     system_map:
       Linux: "Linux"
       Darwin: "macOS"
-  get_url:
+  ansible.builtin.get_url:
     url: "https://github.com/errata-ai/vale/releases/download/{{ vale_version }}/vale_{{ vale_version | regex_replace('^v', '') }}_{{ system_map[ansible_system] }}_{{ arch_map[ansible_architecture] }}.tar.gz"
     dest: "/tmp"
     mode: 0644
@@ -34,8 +34,7 @@
     system_map:
       Linux: "Linux"
       Darwin: "macOS"
-
-  unarchive:
+  ansible.builtin.unarchive:
     src: "/tmp/vale_{{ vale_version | regex_replace('^v', '') }}_{{ system_map[ansible_system] }}_{{ arch_map[ansible_architecture] }}.tar.gz"
     dest: "~/.local/bin"
-    remote_src: yes
+    remote_src: true

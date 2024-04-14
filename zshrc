@@ -21,7 +21,8 @@ if [[ `uname` == "Darwin" ]]; then
 fi
 
 export PATH=~/.local/bin:~/.local/go/bin:~/go/bin:~/.tfenv/bin:~/.local/n/bin:/home/krakowitzerm/.luarocks/bin/:~/cargo/bin:/usr/local/bin:~/.local/npm/bin:~/.local/python/bin:~/.local/openssh/bin:$PATH
-export GOPATH=~/.local/go
+export GOROOT=~/.local/go
+export GOPATH=~/.local/go/pkg
 export GOBIN=~/.local/bin
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.

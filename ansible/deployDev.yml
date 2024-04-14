@@ -1,4 +1,5 @@
 ---
-- hosts: localhost
+- name: Install my local dev setup
+  hosts: localhost
   roles:
-    - ~/personal/dotfiles/ansible/roles/dev
+    - dev

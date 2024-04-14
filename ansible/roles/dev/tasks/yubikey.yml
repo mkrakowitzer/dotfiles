@@ -1,39 +1,40 @@
 ---
 - name: Remove old versions of yubico-piv-tool
   become: true
-  file:
+  ansible.builtin.file:
     path: "/tmp/yubico-piv-tool"
     state: absent
 
 - name: Clone yubico-piv-tool
-  git:
+  ansible.builtin.git:
     repo: https://github.com/Yubico/yubico-piv-tool.git
     dest: "/tmp/yubico-piv-tool"
     depth: 1
 
 - name: Make build directory
-  file:
+  ansible.builtin.file:
     path: "/tmp/yubico-piv-tool/build"
     state: directory
+    mode: 0755
 
-- name: cmake yubico-piv-tool
-  command: cmake ..
+- name: Run cmake yubico-piv-tool
+  ansible.builtin.command: cmake ..
   args:
     chdir: "/tmp/yubico-piv-tool/build"
 
-- name: make yubico-piv-tool
-  command: make
+- name: Run make yubico-piv-tool
+  ansible.builtin.command: make
   args:
     chdir: "/tmp/yubico-piv-tool/build"
 
 - name: Install yubico-piv-tool
-  command: make install
+  ansible.builtin.command: make install
   args:
     chdir: "/tmp/yubico-piv-tool/build"
   become: true
 
 - name: Install solokey packages
-  pip:
+  ansible.builtin.pip:
     name: "{{ item }}"
     state: present
     executable: "{{ ansible_env.HOME }}/.local/python/bin/pip"

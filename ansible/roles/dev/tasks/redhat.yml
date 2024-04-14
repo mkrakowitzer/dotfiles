@@ -1,11 +1,12 @@
+---
 - name: Install epel
-  yum:
+  become: true
+  ansible.builtin.dnf:
     name: "epel-release"
     state: present
-  become: yes
 
 - name: Install packages on Red Hat-based systems
-  yum:
-    name: "{{ common_packages + redhat_packages }}"
+  become: true
+  ansible.builtin.dnf:
+    name: "{{ dev_common_packages + dev_redhat_packages }}"
     state: present
-  become: yes

@@ -1,63 +1,61 @@
 ---
 # https://pre-commit.com/
 - name: Install pre-commit
-  pip:
+  ansible.builtin.pip:
     name: pre-commit
     state: present
     executable: "{{ ansible_env.HOME }}/.local/python/bin/pip"
 
-- name: user.name for git config
-  become_user: "{{ username }}"
-  git_config:
+- name: Set user.name for git config
+  community.general.git_config:
     name: user.name
     scope: global
-    value: "{{ gitusername }}"
+    value: "{{ dev_gitusername }}"
 
-- name: user.email for git config
-  become_user: "{{ username }}"
-  git_config:
+- name: Set user.email for git config
+  community.general.git_config:
     name: user.email
     scope: global
-    value: "{{ email }}"
+    value: "{{ dev_email }}"
 
 - name: Set git to use SSH for GitHub
-  git_config:
+  community.general.git_config:
     name: "url.ssh://git@github.com/.insteadOf"
     value: "https://github.com/"
     scope: global
 
 - name: Set git to use SSH for GitLab
-  git_config:
+  community.general.git_config:
     name: "url.ssh://git@gitlab.com/.insteadOf"
     value: "https://gitlab.com/"
     scope: global
 
 - name: Sign tags with ssh
-  git_config:
+  community.general.git_config:
     name: "tag.gpgSign"
     value: "true"
     scope: global
 
 - name: Sign commits with ssh
-  git_config:
+  community.general.git_config:
     name: "gpg.format"
     value: "ssh"
     scope: global
 
 - name: Set allowed signers
-  git_config:
+  community.general.git_config:
     name: "gpg.ssh.allowedSignersFile"
     value: "~/.ssh/allowed_signers"
     scope: global
 
 - name: Set signingkey
-  git_config:
+  community.general.git_config:
     name: "user.signingKey"
     value: "~/.ssh/id_ed25519_sk_rk"
     scope: global
 
 - name: Set commit.gpgsign
-  git_config:
+  community.general.git_config:
     name: "commit.gpgSign"
     value: "true"
     scope: global

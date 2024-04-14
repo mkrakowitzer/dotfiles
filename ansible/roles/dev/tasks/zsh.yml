@@ -1,90 +1,94 @@
 ---
 - name: Set shell path for macOS
-  set_fact:
+  ansible.builtin.set_fact:
     shell_path: "/opt/homebrew/bin/zsh"
   when: ansible_os_family == "Darwin"
 
 - name: Set shell path for Linux
-  set_fact:
+  ansible.builtin.set_fact:
     shell_path: "/usr/bin/zsh"
   when: ansible_os_family == "RedHat" or ansible_os_family == "Debian"
 
 - name: Add shell to /etc/shells
-  lineinfile:
+  become: true
+  ansible.builtin.lineinfile:
     path: /etc/shells
     line: "{{ shell_path }}"
     state: present
-  become: yes
   when: ansible_os_family == "Darwin"
 
 - name: Ensure zsh is the default shell
-  user:
-    name: "{{ username }}"
+  become: true
+  ansible.builtin.user:
+    name: "{{ dev_username }}"
     shell: "{{ shell_path }}"
-  become: yes
 
-- name: link zshrc
-  file:
+- name: Link zshrc
+  ansible.builtin.file:
     src: "~/personal/dotfiles/zshrc"
     dest: "~/.zshrc"
     state: link
     force: true
 
-- name: link p10k.zsh
-  file:
+- name: Link p10k.zsh
+  ansible.builtin.file:
     src: "~/personal/dotfiles/p10k.zsh"
     dest: "~/.p10k.zsh"
     state: link
     force: true
 
 - name: Ensure wezterm config directory exists
-  file:
+  ansible.builtin.file:
     path: "~/.config/wezterm"
     state: directory
-    owner: "{{ username }}"
+    owner: "{{ dev_username }}"
     group: "{{ effective_group }}"
+    mode: 0750
 
-- name: link wezterm config
-  file:
+- name: Link wezterm config
+  ansible.builtin.file:
     src: "~/personal/dotfiles/wezterm.lua"
     dest: "~/.config/wezterm/wezterm.lua"
     state: link
 
-- name: cleanup Oh My Zsh install
-  command: rm -rf ~/.oh-my-zsh
+- name: Cleanup Oh My Zsh install
+  ansible.builtin.command: rm -rf ~/.oh-my-zsh
 
 - name: Download Oh My Zsh installation script
-  get_url:
+  ansible.builtin.get_url:
     url: https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh
     dest: /tmp/install_ohmyzsh.sh
+    mode: 0755
 
 - name: Run Oh My Zsh installation script
-  command: sh /tmp/install_ohmyzsh.sh --unattended  --keep-zshrc
+  ansible.builtin.command: sh /tmp/install_ohmyzsh.sh --unattended  --keep-zshrc
   register: ohmyzsh_result
   failed_when: "'FAILED' in ohmyzsh_result.stderr"
 
 - name: Clone powerldevl10k theme
-  git:
+  ansible.builtin.git:
     repo: https://github.com/romkatv/powerlevel10k.git
     dest: "~/.oh-my-zsh/custom/themes/powerlevel10k"
-    update: yes
+    update: true
     depth: 1
 
 - name: Set font directory based on OS type
-  set_fact:
+  ansible.builtin.set_fact:
     font_dir: "{{ '~/Library/Fonts' if ansible_facts['os_family'] == 'Darwin' else '~/.fonts' }}"
 
 - name: Ensure font directory exists
-  file:
+  ansible.builtin.file:
     path: "{{ font_dir }}"
     state: directory
-    owner: "{{ username }}"
+    owner: "{{ dev_username }}"
     group: "{{ effective_group }}"
+    mode: 0755
 
 - name: Download Meslo Nerd Fonts
-  get_url:
+  ansible.builtin.get_url:
     url: "https://github.com/romkatv/powerlevel10k-media/raw/master/{{ item | replace(' ', '%20') }}.ttf"
     dest: "{{ font_dir }}/{{ item | replace(' ', '_') }}.ttf"
+    mode: 0644
   loop:
     - "MesloLGS NF Regular"
     - "MesloLGS NF Bold"
@@ -92,5 +96,5 @@
     - "MesloLGS NF Bold Italic"
 
 - name: Reload font cache on Linux
-  command: fc-cache -f -v
+  ansible.builtin.command: fc-cache -f -v
   when: ansible_system == 'Linux'

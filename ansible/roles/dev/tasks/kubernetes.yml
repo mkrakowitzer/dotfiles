@@ -1,61 +1,69 @@
 ---
 - name: Install kubectl
-  get_url:
-    url: https://dl.k8s.io/release/{{ kubectl_version }}/bin/{{ ansible_system | lower }}/{{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}/kubectl
+  ansible.builtin.get_url:
+    url: https://dl.k8s.io/release/{{ dev_kubectl_version }}/bin/{{ ansible_system | lower }}/{{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}/kubectl
     dest: "{{ ansible_env.HOME }}/.local/bin/kubectl"
     mode: 0755
 
 - name: Check kubectl version
-  command: "{{ ansible_env.HOME }}/.local/bin/kubectl version --client"
+  ansible.builtin.command: "{{ ansible_env.HOME }}/.local/bin/kubectl version --client"
   register: kubectl_version
+  changed_when: false
 
-- debug:
+- name: Output kubectl version
+  ansible.builtin.debug:
     var: kubectl_version.stdout
 
 - name: Download helm
-  get_url:
-    url: https://get.helm.sh/helm-{{ helm_version }}-{{ ansible_system | lower }}-{{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}.tar.gz
+  ansible.builtin.get_url:
+    url: https://get.helm.sh/helm-{{ dev_helm_version }}-{{ ansible_system | lower }}-{{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}.tar.gz
     dest: "/tmp/"
     mode: 0755
 
 - name: Extract helm
-  unarchive:
-    src: "/tmp/helm-{{ helm_version }}-{{ ansible_system | lower }}-{{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}.tar.gz"
+  ansible.builtin.unarchive:
+    src: "/tmp/helm-{{ dev_helm_version }}-{{ ansible_system | lower }}-{{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}.tar.gz"
     dest: "/tmp/"
-    remote_src: yes
-    creates: "/tmp/{{ansible_system | lower }}-{{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}/helm"
+    remote_src: true
+    creates: "/tmp/{{ ansible_system | lower }}-{{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}/helm"
 
-- name: Move helm to bin
-  command: mv /tmp/{{ansible_system | lower }}-{{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}/helm {{ ansible_env.HOME }}/.local/bin/
+- name: Copy file
+  ansible.builtin.copy:
+    src: "/tmp/{{ ansible_system | lower }}-{{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}/helm"
+    dest: "{{ ansible_env.HOME }}/.local/bin/"
+    remote_src: true
+    mode: 0755
 
 - name: Check helm version
-  command: "{{ ansible_env.HOME }}/.local/bin/helm version --client"
+  ansible.builtin.command: "{{ ansible_env.HOME }}/.local/bin/helm version --client"
   register: helm_version
+  changed_when: false
 
-- debug:
+- name: Output helm version
+  ansible.builtin.debug:
     var: helm_version.stdout
 
 - name: Install kubectl completion
-  shell: "{{ ansible_env.HOME }}/.local/bin/kubectl completion zsh > ~/.kubectl-completion"
+  ansible.builtin.shell: "{{ ansible_env.HOME }}/.local/bin/kubectl completion zsh > ~/.kubectl-completion"
   args:
     creates: ~/.kubectl-completion
 
-- name: create hostfile entries
-  lineinfile:
-    path: /etc/hosts
-    line: "{{ item }}"
-    state: present
-  with_items:
-    - "192.168.0.241    worker01"
-    - "192.168.0.242    worker02"
-    - "192.168.0.243    worker03"
-    - "192.168.0.251    cont01"
-    - "192.168.0.252    cont02"
-    - "192.168.0.253    cont03"
-  become: yes
+# - name: Create hostfile entries
+#   ansible.builtin.lineinfile:
+#     path: /etc/hosts
+#     line: "{{ item }}"
+#     state: present
+#   with_items:
+#     - "192.168.0.241    worker01"
+#     - "192.168.0.242    worker02"
+#     - "192.168.0.243    worker03"
+#     - "192.168.0.251    cont01"
+#     - "192.168.0.252    cont02"
+#     - "192.168.0.253    cont03"
+#   become: true
 
 - name: Install kind
-  command: "go install sigs.k8s.io/kind@{{ kind_version }}"
+  ansible.builtin.command: "go install sigs.k8s.io/kind@{{ dev_kind_version }}"
   args:
     creates: "{{ ansible_env.HOME }}/.local/go/bin/kind"
   environment:
@@ -65,41 +73,42 @@
 
 # Docker Ubuntu
 - name: Download docker gpg
-  get_url:
+  ansible.builtin.get_url:
     url: https://download.docker.com/linux/ubuntu/gpg
     dest: /etc/apt/keyrings/docker.asc
     mode: 0644
-  become: yes
+  become: true
   when: ansible_distribution == 'Ubuntu'
 
 - name: Add docker repo
-  copy:
+  ansible.builtin.copy:
     dest: /etc/apt/sources.list.d/docker.list
     content: "deb [arch={{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
     mode: 0644
-  become: yes
+    remote_src: true
+  become: true
   when: ansible_distribution == 'Ubuntu'
 
 - name: Install docker
-  apt:
+  ansible.builtin.apt:
     name: "{{ item }}"
     state: present
-    update_cache: yes
+    update_cache: true
   with_items:
     - docker-ce
     - docker-ce-cli
     - containerd.io
     - docker-buildx-plugin
     - docker-compose-plugin
-  become: yes
+  become: true
   when: ansible_distribution == 'Ubuntu'
 
 - name: Add user to docker group
-  user:
-    name: "{{ username }}"
+  ansible.builtin.user:
+    name: "{{ dev_username }}"
     groups: docker
-    append: yes
-  become: yes
+    append: true
+  become: true
   when: ansible_distribution == 'Ubuntu'
 
 # Docker MacOS
@@ -108,4 +117,3 @@
     name: homebrew/cask/docker
     state: present
   when: ansible_distribution == 'MacOSX'
-

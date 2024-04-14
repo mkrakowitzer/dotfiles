@@ -1,26 +1,18 @@
 ---
-- name: link zshrc
-  file:
+- name: Link zshrc
+  ansible.builtin.file:
     src: "~/personal/dotfiles/tmux.conf"
     dest: "~/.tmux.conf"
-    owner: "{{ username }}"
+    owner: "{{ dev_username }}"
     group: "{{ effective_group }}"
     state: link
 
 - name: Clone tpm
-  git:
+  ansible.builtin.git:
     repo: "https://github.com/tmux-plugins/tpm"
     dest: "~/.tmux/plugins/tpm"
-    update: yes
+    update: true
     depth: 1
 
 - name: Install tmux plugins
-  shell: "~/.tmux/plugins/tpm/scripts/install_plugins.sh"
-
-# tmux start-server
-## create a new session but don't attach to it either
-#tmux new-session -d
-## install the plugins
-#~/.tmux/plugins/tpm/scripts/install_plugins.sh
-## killing the server is not required, I guess
-#tmux kill-server
+  ansible.builtin.shell: "~/.tmux/plugins/tpm/scripts/install_plugins.sh"

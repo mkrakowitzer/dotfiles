@@ -1,72 +1,113 @@
 ---
 - name: Enable sudo without password
   become: true
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/sudoers
-    line: "{{ username }} ALL=(ALL) NOPASSWD: ALL"
+    line: "{{ dev_username }} ALL=(ALL) NOPASSWD: ALL"
     state: present
     validate: 'visudo -cf %s'
 
 # Set some custom facts
 
 - name: Set effective group for Linux machines
-  set_fact:
-    effective_group: "{{ group }}"
+  ansible.builtin.set_fact:
+    effective_group: "{{ dev_group }}"
   when: ansible_os_family == "RedHat" or ansible_os_family == "Debian"
 
 - name: Set effective group for macOS machines
-  set_fact:
-    effective_group: "{{ macos_group }}"
+  ansible.builtin.set_fact:
+    effective_group: "{{ dev_macos_group }}"
   when: ansible_os_family == "Darwin"
 
 # Make common directories
 
 - name: Make .local/bin directory
-  file:
+  ansible.builtin.file:
     path: "~/.local/bin"
     state: directory
-    owner: "{{ username }}"
+    owner: "{{ dev_username }}"
     group: "{{ effective_group }}"
+    mode: '750'
 
-- name: create .config directory
-  file:
+- name: Create .config directory
+  ansible.builtin.file:
     path: "~/.config"
     state: directory
-    owner: "{{ username }}"
+    owner: "{{ dev_username }}"
     group: "{{ effective_group }}"
+    mode: '750'
 
-# OS specific tasks
+# # Include required collections
+#     #
+# # Work around circular dependency
+# - name: Install community.general collection workaround
+#   command: ansible-galaxy collection install community.general
+#
+# - name: Install collections
+#   ansible.builtin.include_tasks: tasks/collections.yml
 
-- include_tasks: tasks/debian.yml
+#  OS specific tasks
+
+- name: Debian specific tasks
+  ansible.builtin.include_tasks: tasks/debian.yml
   when: ansible_os_family == "Debian"
 
-- include_tasks: tasks/redhat.yml
+- name: RedHat specific tasks
+  ansible.builtin.include_tasks: tasks/redhat.yml
   when: ansible_os_family == "RedHat"
 
-- include_tasks: tasks/macos.yml
+- name: MacOS specific tasks
+  ansible.builtin.include_tasks: tasks/macos.yml
   when: ansible_os_family == "Darwin"
 
-- name: luacheck
-  shell:
+- name: Install luacheck
+  ansible.builtin.shell:
     cmd: luarocks install luacheck --local
   # LUA EPEL luarocks is poked
   when: ansible_os_family != "RedHat"
+  changed_when: false
 
 # Tasks that are common to all OSes
 
-- include_tasks: zsh.yml
-- include_tasks: tmux.yml
-- include_tasks: ssh.yml
-- include_tasks: golang.yml
-- include_tasks: rust.yml
-- include_tasks: npm.yml
-- include_tasks: python.yml
-- include_tasks: terraform.yml
-- include_tasks: neovim.yml
-- include_tasks: vale.yml
-- include_tasks: hugo.yml
-- include_tasks: kubernetes.yml
-- include_tasks: yubikey.yml
+- name: Configure and install zsh
+  ansible.builtin.include_tasks: zsh.yml
+
+- name: Configure and install tmux
+  ansible.builtin.include_tasks: tmux.yml
+
+- name: Configure and install ssh
+  ansible.builtin.include_tasks: ssh.yml
+
+- name: Install golang
+  ansible.builtin.include_tasks: golang.yml
+
+- name: Install  rust
+  ansible.builtin.include_tasks: rust.yml
+
+- name: Install npm
+  ansible.builtin.include_tasks: npm.yml
+
+- name: Install python
+  ansible.builtin.include_tasks: python.yml
+
+- name: Install terraform
+  ansible.builtin.include_tasks: terraform.yml
+
+- name: Install and configure neovim
+  ansible.builtin.include_tasks: neovim.yml
+
+- name: Install vale
+  ansible.builtin.include_tasks: vale.yml
+
+- name: Install hugo
+  ansible.builtin.include_tasks: hugo.yml
+
+- name: Install kubernetes tools
+  ansible.builtin.include_tasks: kubernetes.yml
+
+- name: Install yubikey and solo key tools
+  ansible.builtin.include_tasks: yubikey.yml
 
 # Add git last as we mangle the git config to force ssh
-- include_tasks: git.yml
+- name: Configure git
+  ansible.builtin.include_tasks: git.yml

@@ -1,27 +1,28 @@
+---
 - name: Git clone tfenv
-  git:
+  ansible.builtin.git:
     repo: https://github.com/tfutils/tfenv.git
     dest: ~/.tfenv
     depth: 1
 
 - name: Create tfenv symlink
-  file:
+  ansible.builtin.file:
     src: ~/.tfenv/bin/tfenv
     dest: ~/.local/bin/tfenv
     state: link
 
 - name: Create terraform symlink
-  file:
+  ansible.builtin.file:
     src: ~/.tfenv/bin/terraform
     dest: ~/.local/bin/terraform
     state: link
 
 - name: Install terraform versions with tfenv
-  command: ~/.local/bin/tfenv install {{ item }}
+  ansible.builtin.command: ~/.local/bin/tfenv install {{ item }}
   loop:
     - "1.7.5"
 
 - name: Set terraform version to use
-  command: ~/.local/bin/tfenv use {{ item }}
+  ansible.builtin.command: ~/.local/bin/tfenv use {{ item }}
   loop:
     - "1.7.5"

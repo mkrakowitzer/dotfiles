@@ -1,12 +1,12 @@
 ---
 - name: Remove old versions of neovim
   become: true
-  file:
+  ansible.builtin.file:
     path: "/tmp/neovim"
     state: absent
 
 - name: Clone neovim
-  git:
+  ansible.builtin.git:
     repo: https://github.com/neovim/neovim.git
     dest: "/tmp/neovim"
     depth: 1
@@ -14,86 +14,97 @@
 
 - name: Neovim Make
   become: true
-  command: make CMAKE_BUILD_TYPE=Release install
+  ansible.builtin.command: make CMAKE_BUILD_TYPE=Release install
   args:
     chdir: "/tmp/neovim"
 
 - name: Clone neovim config
-  git:
+  ansible.builtin.git:
     repo: https://github.com/mkrakowitzer/neovimrc.git
     dest: "~/personal/nvim"
 
 - name: Remove old neovim config
-  file:
+  ansible.builtin.file:
     path: "~/.config/nvim"
     state: absent
 
 - name: Create soft link
-  file:
+  ansible.builtin.file:
     src: "~/personal/nvim"
     dest: "~/.config/nvim"
     state: link
 
 - name: Install goimports
-  command: go install -v golang.org/x/tools/cmd/goimports@latest
+  ansible.builtin.command: go install -v golang.org/x/tools/cmd/goimports@latest
+  environment:
+    PATH: "{{ ansible_env.HOME }}/.local/go/bin:{{ ansible_env.PATH }}"
+    GOBIN: "{{ ansible_env.HOME }}/.local/go/bin"
+    GOPATH: "{{ ansible_env.HOME }}/.local/go"
+
+- name: Install golangci-lint
+  ansible.builtin.command: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
   environment:
     PATH: "{{ ansible_env.HOME }}/.local/go/bin:{{ ansible_env.PATH }}"
     GOBIN: "{{ ansible_env.HOME }}/.local/go/bin"
     GOPATH: "{{ ansible_env.HOME }}/.local/go"
 
 - name: Install goimports-reviser
-  command: go install -v github.com/incu6us/goimports-reviser/v3@latest
+  ansible.builtin.command: go install -v github.com/incu6us/goimports-reviser/v3@latest
   environment:
     PATH: "{{ ansible_env.HOME }}/.local/go/bin:{{ ansible_env.PATH }}"
     GOBIN: "{{ ansible_env.HOME }}/.local/go/bin"
     GOPATH: "{{ ansible_env.HOME }}/.local/go"
 
 - name: Create yamllint directory
-  file:
+  ansible.builtin.file:
     path: "~/.config/yamllint"
     state: directory
+    mode: 0755
 
 - name: Create yamllint config
-  file:
+  ansible.builtin.file:
     src: "~/personal/dotfiles/yamllint_config"
     dest: "~/.config/yamllint/config"
     state: link
 
 - name: Install yamllint and mdformat
-  pip:
+  ansible.builtin.pip:
     name: "{{ item }}"
     state: present
     executable: "{{ ansible_env.HOME }}/.local/python/bin/pip"
   with_items:
     - yamllint
     - mdformat
+    - ansible-lint
+    - codespell
 
 - name: Install fixjson
-  command: npm install -g fixjson
+  ansible.builtin.command: npm install -g fixjson
   environment:
     PATH: "{{ ansible_env.HOME }}/.local/n/bin:{{ ansible_env.PATH }}"
 
 - name: Install markdownlint-cl
-  command: npm install -g markdownlint-cli
+  ansible.builtin.command: npm install -g markdownlint-cli
   environment:
     PATH: "{{ ansible_env.HOME }}/.local/n/bin:{{ ansible_env.PATH }}"
 
 - name: Download yq
-  get_url:
-    url: https://github.com/mikefarah/yq/releases/download/{{ yq_version }}/yq_linux_amd64.tar.gz
-    dest: /tmp/yq{{ yq_version }}.tar.gz
+  ansible.builtin.get_url:
+    url: https://github.com/mikefarah/yq/releases/download/{{ dev_yq_version }}/yq_linux_amd64.tar.gz
+    dest: /tmp/yq{{ dev_yq_version }}.tar.gz
     mode: 0644
 
-- name: uncompress yq binary
-  unarchive:
-    src: /tmp/yq{{ yq_version }}.tar.gz
+- name: Uncompress yq binary
+  ansible.builtin.unarchive:
+    src: /tmp/yq{{ dev_yq_version }}.tar.gz
     dest: ~/.local/bin
-    remote_src: yes
+    remote_src: true
     creates: ~/.local/bin/yq_linux_amd64
     mode: 0755
 
-- name: create yq symlink
-  file:
+- name: Create yq symlink
+  ansible.builtin.file:
     src: ~/.local/bin/yq_linux_amd64
     dest: ~/.local/bin/yq
     state: link
+    force: true
