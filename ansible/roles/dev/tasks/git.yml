@@ -59,3 +59,9 @@
     name: "commit.gpgSign"
     value: "true"
     scope: global
+
+- name: Set commit.gpgsign
+  community.general.git_config:
+    name: "init.defaultBranch"
+    value: "main"
+    scope: global
