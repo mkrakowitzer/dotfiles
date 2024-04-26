@@ -51,7 +51,7 @@
 - name: Set signingkey
   community.general.git_config:
     name: "user.signingKey"
-    value: "~/.ssh/id_ed25519_sk_rk"
+    value: "~/.ssh/id_ed25519_sk_rk_yubikey_no_touch"
     scope: global
 
 - name: Set commit.gpgsign

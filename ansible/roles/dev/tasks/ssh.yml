@@ -92,3 +92,15 @@
   args:
     chdir: "/tmp/openssh-portable"
   changed_when: false
+
+- name: Make .ssh directory
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.ssh"
+    state: directory
+    mode: '0700'
+
+- name: Copy ssh config
+  ansible.builtin.copy:
+    src: "~/personal/dotfiles/ssh_config"
+    dest: "{{ ansible_env.HOME }}/.ssh/config"
+    mode: '0600'

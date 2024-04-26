@@ -60,3 +60,33 @@ mkdir personal
 cd personal
 curl https://raw.githubusercontent.com/mkrakowitzer/dotfiles/main/setup | sh
 ```
+
+## Regenerating my ssh keys
+
+```shell
+ssh-keygen -K -O no-touch-required
+mv id_ed25519_sk_rk id_ed25519_sk_rk_black_with_no_touch
+mv id_ed25519_sk_rk.pub id_ed25519_sk_rk_black_with_no_touch.pub
+
+ssh-keygen -K -O no-touch-required
+mv id_ed25519_sk_rk iid_ed25519_sk_rk_black_with_touch
+mv id_ed25519_sk_rk.pub id_ed25519_sk_rk_black_with_touch.pub
+
+ssh-keygen -K -O no-touch-required
+mv id_ed25519_sk_rk iid_ed25519_sk_rk_red_with_no_touch
+mv id_ed25519_sk_rk.pub id_ed25519_sk_rk_red_with_no_touch.pub
+```
+
+```shell
+ssh-keygen -K
+mv id_ed25519_sk_rk iid_ed25519_sk_rk_red_with_touch
+mv id_ed25519_sk_rk.pub id_ed25519_sk_rk_red_with_touch.pub
+
+ssh-keygen -K
+mv id_ed25519_sk_rk iid_ed25519_sk_rk_yubikey_no_touch
+mv id_ed25519_sk_rk.pub id_ed25519_sk_rk_yubikey_no_touch.pub
+
+ssh-keygen -K
+mv id_ed25519_sk_rk iid_ed25519_sk_rk_yubikey_touch
+mv id_ed25519_sk_rk.pub id_ed25519_sk_rk_yubikey_touch.pub
+```
