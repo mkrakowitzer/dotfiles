@@ -1,0 +1,14 @@
+Host GitHub
+    Hostname *.github.com
+    IdentityFile ~/.ssh/id_ed25519_sk_rk_yubikey_touch
+    IdentityFile ~/.ssh/id_ed25519_sk_rk_red_touch
+    IdentityFile ~/.ssh/id_ed25519_sk_rk_black_touch
+
+# Must be last, first param takes precedence
+Host *
+    User krakowitzerm
+    UpdateHostKeys yes
+    StrictHostKeyChecking=yes
+    IdentityFile ~/.ssh/id_ed25519_sk_rk_yubikey_no_touch
+    IdentityFile ~/.ssh/id_ed25519_sk_rk_red_no_touch
+    IdentityFile ~/.ssh/id_ed25519_sk_rk_black_no_touch

@@ -61,9 +61,12 @@ dev_macos_packages:
   - automake
   - homebrew/cask/cmake
   - homebrew/cask/wezterm
+  - homebrew/cask/clipy
+  - homebrew/cask/karabiner-elements
   - help2man
-  # - homebrew/cask/karabiner-elements
-  # - homebrew/cask/iterm2
+  - fswatch
+  - checkmake
+  - zsh-autosuggestions
 
 dev_common_packages:
   - git
