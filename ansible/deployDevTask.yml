@@ -1,0 +1,10 @@
+---
+- name: Install my local dev setup
+  hosts: localhost
+  gather_facts: false
+
+  tasks:
+    - name: Run only the neovim tasks from the dev role
+      ansible.builtin.include_role:
+        name: dev
+        tasks_from: neovim
