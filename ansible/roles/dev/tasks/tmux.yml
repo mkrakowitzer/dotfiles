@@ -11,8 +11,11 @@
   ansible.builtin.git:
     repo: "https://github.com/tmux-plugins/tpm"
     dest: "~/.tmux/plugins/tpm"
+    accept_hostkey: true
     update: true
     depth: 1
+  environment:
+    GIT_CONFIG_GLOBAL: /dev/null
 
 - name: Install tmux plugins
   ansible.builtin.shell: "~/.tmux/plugins/tpm/scripts/install_plugins.sh"

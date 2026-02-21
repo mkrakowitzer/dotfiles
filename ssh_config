@@ -3,6 +3,7 @@ Host GitHub
     IdentityFile ~/.ssh/id_ed25519_sk_rk_yubikey_touch
     IdentityFile ~/.ssh/id_ed25519_sk_rk_red_touch
     IdentityFile ~/.ssh/id_ed25519_sk_rk_black_touch
+    IdentityFile ~/.ssh/id_ed25519
 
 # Must be last, first param takes precedence
 Host *
@@ -12,3 +13,4 @@ Host *
     IdentityFile ~/.ssh/id_ed25519_sk_rk_yubikey_no_touch
     IdentityFile ~/.ssh/id_ed25519_sk_rk_red_no_touch
     IdentityFile ~/.ssh/id_ed25519_sk_rk_black_no_touch
+    IdentityFile ~/.ssh/id_ed25519

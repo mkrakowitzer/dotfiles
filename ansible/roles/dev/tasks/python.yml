@@ -1,24 +1,25 @@
 ---
 - name: Remove old python
-  ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.local/python"
-    state: absent
-  become: true
+  ansible.builtin.raw: test ! -e "{{ ansible_facts['env']['HOME'] }}/.local/python" || rm -rf "{{ ansible_facts['env']['HOME'] }}/.local/python"
+  changed_when: false
 
-- name: Get the python versions information
-  ansible.builtin.uri:
+- name: Download python versions information
+  ansible.builtin.get_url:
     url: "https://endoflife.date/api/python.json"
-    method: GET
-    return_content: true
-    headers:
-      Accept: "application/json"
+    dest: /tmp/python_versions.json
+    mode: "0644"
+    force: true
+  changed_when: false
+
+- name: Read python versions information
+  ansible.builtin.slurp:
+    src: /tmp/python_versions.json
   register: python_versions_response
-  failed_when: python_versions_response.status != 200
 
 - name: Set the latest Python version as a fact
   ansible.builtin.set_fact:
     # first should be the latest
-    python_version: "{{ python_versions_response.json[0].latest }}"
+    python_version: "{{ (python_versions_response.content | b64decode | from_json)[0].latest }}"
 
 - name: Download python tar file
   ansible.builtin.get_url:
@@ -41,31 +42,31 @@
     mode: 0755
 
 - name: Configure Python (Linux)
-  ansible.builtin.command: ./configure --prefix={{ ansible_env.HOME }}/.local/python
+  ansible.builtin.command: ./configure --prefix={{ ansible_facts['env']['HOME'] }}/.local/python
   args:
     chdir: /tmp/Python-{{ python_version }}
-  when: ansible_system == "Linux"
+  when: ansible_facts['system'] == "Linux"
 
 - name: Get openssl@3.0 prefix
   ansible.builtin.command: brew --prefix openssl@3.0
   register: openssl_prefix
-  when: ansible_system == "Darwin"
+  when: ansible_facts['system'] == "Darwin"
   changed_when: false
 
 - name: Get gdbm prefix
   ansible.builtin.command: brew --prefix gdbm
   register: gdbm_prefix
-  when: ansible_system == "Darwin"
+  when: ansible_facts['system'] == "Darwin"
   changed_when: false
 
 - name: Configure Python (Darwin)
-  ansible.builtin.command: ./configure --prefix={{ ansible_env.HOME }}/.local/python --with-openssl="{{ openssl_prefix.stdout }}"
+  ansible.builtin.command: ./configure --prefix={{ ansible_facts['env']['HOME'] }}/.local/python --with-openssl="{{ openssl_prefix.stdout }}"
   args:
     chdir: /tmp/Python-{{ python_version }}
   environment:
     GDBM_CFLAGS: "-I{{ gdbm_prefix.stdout }}/include"
     GDBM_LIBS: "-L{{ gdbm_prefix.stdout }}/lib -lgdbm"
-  when: ansible_system == "Darwin"
+  when: ansible_facts['system'] == "Darwin"
 
 - name: Make Python-{{ python_version }}
   ansible.builtin.command: make -j 4
@@ -79,6 +80,6 @@
 
 - name: Link pip3 to pip
   ansible.builtin.file:
-    src: "{{ ansible_env.HOME }}/.local/python/bin/pip3"
-    dest: "{{ ansible_env.HOME }}/.local/python/bin/pip"
+    src: "{{ ansible_facts['env']['HOME'] }}/.local/python/bin/pip3"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.local/python/bin/pip"
     state: link

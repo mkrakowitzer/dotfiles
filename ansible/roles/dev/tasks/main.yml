@@ -12,12 +12,12 @@
 - name: Set effective group for Linux machines
   ansible.builtin.set_fact:
     effective_group: "{{ dev_group }}"
-  when: ansible_os_family == "RedHat" or ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "RedHat" or ansible_facts['os_family'] == "Debian"
 
 - name: Set effective group for macOS machines
   ansible.builtin.set_fact:
     effective_group: "{{ dev_macos_group }}"
-  when: ansible_os_family == "Darwin"
+  when: ansible_facts['os_family'] == "Darwin"
 
 # Make common directories
 
@@ -50,21 +50,21 @@
 
 - name: Debian specific tasks
   ansible.builtin.include_tasks: tasks/debian.yml
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: RedHat specific tasks
   ansible.builtin.include_tasks: tasks/redhat.yml
-  when: ansible_os_family == "RedHat"
+  when: ansible_facts['os_family'] == "RedHat"
 
 - name: MacOS specific tasks
   ansible.builtin.include_tasks: tasks/macos.yml
-  when: ansible_os_family == "Darwin"
+  when: ansible_facts['os_family'] == "Darwin"
 
 - name: Install luacheck
   ansible.builtin.shell:
     cmd: luarocks install luacheck --local
   # LUA EPEL luarocks is poked
-  when: ansible_os_family != "RedHat"
+  when: ansible_facts['os_family'] != "RedHat"
   changed_when: false
 
 # Tasks that are common to all OSes

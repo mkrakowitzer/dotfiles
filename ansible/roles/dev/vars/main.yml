@@ -42,12 +42,16 @@ dev_redhat_packages:
   - util-linux-user
   - fontconfig
   - cmake
+  - check-devel
+  - libtool
+  - gengetopt
+  - help2man
+  - pcsc-lite-devel
   - openssl-devel
   - bzip2-devel
   - libffi-devel
   - xz-devel
   - tk-devel
-  - ansible-collection-community-crypto
   - lua5.1
 
 dev_macos_packages:

@@ -3,8 +3,8 @@
   ansible.builtin.command: "go install -tags extended github.com/gohugoio/hugo@latest"
   environment:
     CGO_ENABLED: "1"
-    PATH: "{{ ansible_env.HOME }}/.local/go/bin:{{ ansible_env.PATH }}"
-    GOBIN: "{{ ansible_env.HOME }}/.local/go/bin"
-    GOPATH: "{{ ansible_env.HOME }}/.local/go"
+    PATH: "{{ ansible_facts['env']['HOME'] }}/.local/go/bin:{{ ansible_facts['env']['PATH'] }}"
+    GOBIN: "{{ ansible_facts['env']['HOME'] }}/.local/go/bin"
+    GOPATH: "{{ ansible_facts['env']['HOME'] }}/.local/go"
   args:
-    creates: "{{ ansible_env.HOME }}/.local/go/bin/hugo"
+    creates: "{{ ansible_facts['env']['HOME'] }}/.local/go/bin/hugo"

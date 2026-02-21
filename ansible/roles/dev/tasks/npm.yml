@@ -13,18 +13,19 @@
 - name: Run n-install script
   ansible.builtin.command: bash /tmp/n-install -y
   environment:
-    N_PREFIX: "{{ ansible_env.HOME }}/.local/n"
+    N_PREFIX: "{{ ansible_facts['env']['HOME'] }}/.local/n"
+    GIT_CONFIG_GLOBAL: /dev/null
 
 - name: Create npm package directory
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.local/npm"
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/npm"
     state: directory
     mode: 0750
 
 - name: Set npm prefix
   ansible.builtin.lineinfile:
-    path: "{{ ansible_env.HOME }}/.npmrc"
-    line: prefix={{ ansible_env.HOME }}/.local/npm
+    path: "{{ ansible_facts['env']['HOME'] }}/.npmrc"
+    line: prefix={{ ansible_facts['env']['HOME'] }}/.local/npm
     create: true
     state: present
     mode: 0640

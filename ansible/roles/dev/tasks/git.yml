@@ -4,64 +4,51 @@
   ansible.builtin.pip:
     name: pre-commit
     state: present
-    executable: "{{ ansible_env.HOME }}/.local/python/bin/pip"
+    executable: "{{ ansible_facts['env']['HOME'] }}/.local/python/bin/pip"
 
-- name: Set user.name for git config
-  community.general.git_config:
-    name: user.name
-    scope: global
-    value: "{{ dev_gitusername }}"
+- name: Read current global git config values
+  ansible.builtin.command:
+    argv:
+      - git
+      - config
+      - --global
+      - --get
+      - "{{ item.name }}"
+  loop:
+    - name: user.name
+      value: "{{ dev_gitusername }}"
+    - name: user.email
+      value: "{{ dev_email }}"
+    - name: "url.ssh://git@github.com/.insteadOf"
+      value: "https://github.com/"
+    - name: "url.ssh://git@gitlab.com/.insteadOf"
+      value: "https://gitlab.com/"
+    - name: tag.gpgSign
+      value: "true"
+    - name: gpg.format
+      value: "ssh"
+    - name: gpg.ssh.allowedSignersFile
+      value: "~/.ssh/allowed_signers"
+    - name: user.signingKey
+      value: "~/.ssh/id_ed25519_sk_rk_yubikey_no_touch"
+    - name: commit.gpgSign
+      value: "true"
+    - name: init.defaultBranch
+      value: "main"
+  register: git_config_current
+  changed_when: false
+  failed_when: false
 
-- name: Set user.email for git config
-  community.general.git_config:
-    name: user.email
-    scope: global
-    value: "{{ dev_email }}"
-
-- name: Set git to use SSH for GitHub
-  community.general.git_config:
-    name: "url.ssh://git@github.com/.insteadOf"
-    value: "https://github.com/"
-    scope: global
-
-- name: Set git to use SSH for GitLab
-  community.general.git_config:
-    name: "url.ssh://git@gitlab.com/.insteadOf"
-    value: "https://gitlab.com/"
-    scope: global
-
-- name: Sign tags with ssh
-  community.general.git_config:
-    name: "tag.gpgSign"
-    value: "true"
-    scope: global
-
-- name: Sign commits with ssh
-  community.general.git_config:
-    name: "gpg.format"
-    value: "ssh"
-    scope: global
-
-- name: Set allowed signers
-  community.general.git_config:
-    name: "gpg.ssh.allowedSignersFile"
-    value: "~/.ssh/allowed_signers"
-    scope: global
-
-- name: Set signingkey
-  community.general.git_config:
-    name: "user.signingKey"
-    value: "~/.ssh/id_ed25519_sk_rk_yubikey_no_touch"
-    scope: global
-
-- name: Set commit.gpgsign
-  community.general.git_config:
-    name: "commit.gpgSign"
-    value: "true"
-    scope: global
-
-- name: Set commit.gpgsign
-  community.general.git_config:
-    name: "init.defaultBranch"
-    value: "main"
-    scope: global
+- name: Set differing global git config values
+  ansible.builtin.command:
+    argv:
+      - git
+      - config
+      - --global
+      - --replace-all
+      - "{{ item.item.name }}"
+      - "{{ item.item.value }}"
+  loop: "{{ git_config_current.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when: item.rc != 0 or item.stdout != item.item.value

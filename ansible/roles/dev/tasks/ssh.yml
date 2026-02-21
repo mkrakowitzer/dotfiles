@@ -14,51 +14,54 @@
 - name: Remove old versions of openssh install
   become: true
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.local/openssh"
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/openssh"
     state: absent
 
 - name: Clone openssh
   ansible.builtin.git:
     repo: https://github.com/openssh/openssh-portable.git
     dest: "/tmp/openssh-portable"
+    accept_hostkey: true
     depth: 1
-    version: "V_9_2_P1"
+    version: "V_10_2_P1"
+  environment:
+    GIT_CONFIG_GLOBAL: /dev/null
 
-- name: Download patch https://bugzilla.mindrot.org/show_bug.cgi?id=3355
-  ansible.builtin.get_url:
-    url: "https://bugzilla.mindrot.org/attachment.cgi?id=3682"
-    dest: "/tmp/openssh-portable/3682.patch"
-    mode: '0644'
-
+#- name: Download patch https://bugzilla.mindrot.org/show_bug.cgi?id=3355
+#  ansible.builtin.get_url:
+#    url: "https://bugzilla.mindrot.org/attachment.cgi?id=3682"
+#    dest: "/tmp/openssh-portable/3682.patch"
+#    mode: '0644'
+#
 #  - name: Apply patch 3682
 #    ansible.posix.patch:
 #      basedir: "/tmp/openssh-portable"
 #      src: "/tmp/openssh-portable/3682.patch"
 #      remote_src: true
-
-- name: Apply patch 3682
-  ansible.builtin.shell: patch -p1 < 3682.patch
-  args:
-    chdir: "/tmp/openssh-portable"
-  changed_when: false
-
-- name: Download patch https://bugzilla.mindrot.org/show_bug.cgi?id=3355
-  ansible.builtin.get_url:
-    url: "https://bugzilla.mindrot.org/attachment.cgi?id=3683"
-    dest: "/tmp/openssh-portable/3683.patch"
-    mode: '0644'
+#
+#- name: Apply patch 3682
+#  ansible.builtin.shell: patch -p1 < ../1234.patch
+#  args:
+#    chdir: "/tmp/openssh-portable"
+#  changed_when: false
+#
+##- name: Download patch https://bugzilla.mindrot.org/show_bug.cgi?id=3355
+#  ansible.builtin.get_url:
+#    url: "https://bugzilla.mindrot.org/attachment.cgi?id=3683"
+#    dest: "/tmp/openssh-portable/3683.patch"
+#    mode: '0644'
 
 # - name: Apply patch 3683
 #   ansible.posix.patch:
 #     basedir: "/tmp/openssh-portable"
 #     src: "/tmp/openssh-portable/3683.patch"
 #     remote_src: true
-
-- name: Apply patch
-  ansible.builtin.shell: patch -p1 < 3683.patch
-  args:
-    chdir: "/tmp/openssh-portable"
-
+#
+#- name: Apply patch
+#  ansible.builtin.shell: patch -p1 < ../5678.patch
+#  args:
+#    chdir: "/tmp/openssh-portable"
+#
 - name: Run autoreconf
   ansible.builtin.command: autoreconf
   args:
@@ -67,7 +70,7 @@
 
 - name: Configure openssh source for build
   # Flags paths will just be ignored if they don't exist
-  ansible.builtin.shell: "./configure LDFLAGS=-L/opt/homebrew/lib CFLAGS=-I/opt/homebrew/include --prefix={{ ansible_env.HOME }}//.local/openssh"
+  ansible.builtin.shell: "./configure LDFLAGS=-L/opt/homebrew/lib CFLAGS=-I/opt/homebrew/include --prefix={{ ansible_facts['env']['HOME'] }}//.local/openssh"
   args:
     chdir: "/tmp/openssh-portable"
   changed_when: false
@@ -95,12 +98,12 @@
 
 - name: Make .ssh directory
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.ssh"
+    path: "{{ ansible_facts['env']['HOME'] }}/.ssh"
     state: directory
     mode: '0700'
 
 - name: Copy ssh config
   ansible.builtin.copy:
     src: "~/personal/dotfiles/ssh_config"
-    dest: "{{ ansible_env.HOME }}/.ssh/config"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.ssh/config"
     mode: '0600'

@@ -1,5 +1,19 @@
 ---
-- name: Install macos packages via brew
-  community.general.homebrew:
-    name: "{{ dev_common_packages + dev_macos_packages }}"
-    state: present
+- name: Install macos formulae via brew
+  ansible.builtin.command:
+    argv:
+      - brew
+      - install
+      - "{{ item }}"
+  loop: "{{ dev_common_packages + (dev_macos_packages | reject('search', '^homebrew/cask/') | list) }}"
+  changed_when: false
+
+- name: Install macos casks via brew
+  ansible.builtin.command:
+    argv:
+      - brew
+      - install
+      - --cask
+      - "{{ item | regex_replace('^homebrew/cask/', '') }}"
+  loop: "{{ dev_macos_packages | select('search', '^homebrew/cask/') | list }}"
+  changed_when: false
