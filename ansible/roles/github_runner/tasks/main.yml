@@ -102,6 +102,42 @@
     path: "{{ github_runner_install_dir }}/.runner"
   register: github_runner_configured
 
+- name: Build desired runner configuration signature
+  ansible.builtin.set_fact:
+    github_runner_config_signature: >-
+      {{
+        {
+          'url': github_runner_url,
+          'name': github_runner_runner_name,
+          'work_dir': github_runner_work_dir,
+          'labels': (github_runner_labels | list)
+        }
+        | to_json
+        | hash('sha256')
+      }}
+
+- name: Check whether runner configuration marker exists
+  ansible.builtin.stat:
+    path: "{{ github_runner_config_marker_path }}"
+  register: github_runner_config_marker
+
+- name: Read runner configuration marker contents
+  ansible.builtin.slurp:
+    path: "{{ github_runner_config_marker_path }}"
+  register: github_runner_config_marker_content
+  when: github_runner_config_marker.stat.exists
+
+- name: Determine if runner configuration update is required
+  ansible.builtin.set_fact:
+    github_runner_needs_configure: >-
+      {{
+        (not github_runner_configured.stat.exists)
+        or
+        (not github_runner_config_marker.stat.exists)
+        or
+        ((github_runner_config_marker_content.content | default('') | b64decode | trim) != github_runner_config_signature)
+      }}
+
 - name: Configure GitHub Actions runner
   ansible.builtin.command:
     argv:
@@ -125,7 +161,16 @@
   args:
     chdir: "{{ github_runner_install_dir }}"
   no_log: true
-  when: not github_runner_configured.stat.exists
+  when: github_runner_needs_configure
+
+- name: Record runner configuration signature
+  ansible.builtin.copy:
+    dest: "{{ github_runner_config_marker_path }}"
+    content: "{{ github_runner_config_signature }}\n"
+    owner: "{{ github_runner_user }}"
+    group: "{{ github_runner_group }}"
+    mode: "0644"
+  when: github_runner_needs_configure
 
 - name: Install github runner systemd unit
   ansible.builtin.template:

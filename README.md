@@ -112,3 +112,10 @@ ansible-playbook ansible/deployGithubRunners.yml
 
 If `GITHUB_RUNNER_ADMIN_TOKEN` is not set, the playbook falls back to `gh api`
 using your existing GitHub CLI authentication.
+
+Host key verification options for `ansible/deployGithubRunners.yml`:
+
+- pin trusted keys with `github_runner_pinned_host_keys` and set
+  `github_runner_trust_host_keys_from_keyscan=false`
+- keep default trust-on-first-use behavior with
+  `github_runner_trust_host_keys_from_keyscan=true`

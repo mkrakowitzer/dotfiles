@@ -11,6 +11,8 @@
         else ansible_playbook_python
       }}
     github_runner_repo: "mkrakowitzer/Saas"
+    github_runner_trust_host_keys_from_keyscan: true
+    github_runner_pinned_host_keys: {}
     github_runner_vm_names:
       - runner-01
       - runner-02
@@ -75,15 +77,86 @@
           - (github_runner_discovered_hosts | map(attribute='ip') | reject('equalto', None) | list | length) == (github_runner_vm_names | length)
         fail_msg: "Failed to discover one or more runner VM IP addresses."
 
-    - name: Scan runner host ed25519 keys
-      ansible.builtin.command: "ssh-keyscan -T 5 -t ed25519 {{ item.ip }}"
-      register: github_runner_keyscan_results
-      changed_when: false
+    - name: Ensure known_hosts directory exists
+      ansible.builtin.file:
+        path: "{{ github_runner_known_hosts_path | dirname }}"
+        state: directory
+        mode: "0700"
+
+    - name: Build pinned host key entries for discovered hosts
+      ansible.builtin.set_fact:
+        github_runner_pinned_host_entries: >-
+          {{
+            (github_runner_pinned_host_entries | default([]))
+            +
+            [{
+              'name': item.name,
+              'ip': item.ip,
+              'key': (
+                github_runner_pinned_host_keys.get(item.name)
+                or github_runner_pinned_host_keys.get(item.ip)
+                or ''
+              )
+            }]
+          }}
       loop: "{{ github_runner_discovered_hosts }}"
       loop_control:
         label: "{{ item.name }}"
 
-    - name: Add discovered runner host keys to known_hosts
+    - name: Build list of hosts that require keyscan
+      ansible.builtin.set_fact:
+        github_runner_hosts_requiring_scan: >-
+          {{
+            github_runner_pinned_host_entries
+            | selectattr('key', 'equalto', '')
+            | list
+          }}
+
+    - name: Require pinned host keys when trust-on-first-use is disabled
+      ansible.builtin.assert:
+        that:
+          - github_runner_hosts_requiring_scan | length == 0
+        fail_msg: >-
+          Missing pinned SSH host keys for one or more runner hosts.
+          Set github_runner_pinned_host_keys with trusted ed25519 keys,
+          or set github_runner_trust_host_keys_from_keyscan=true.
+      when: not github_runner_trust_host_keys_from_keyscan
+
+    - name: Warn when host keys are accepted from ssh-keyscan
+      ansible.builtin.debug:
+        msg: >-
+          github_runner_trust_host_keys_from_keyscan=true accepts host keys from ssh-keyscan.
+          For stronger verification, provide github_runner_pinned_host_keys and set
+          github_runner_trust_host_keys_from_keyscan=false.
+      when:
+        - github_runner_trust_host_keys_from_keyscan
+        - github_runner_hosts_requiring_scan | length > 0
+
+    - name: Add pinned runner host keys to known_hosts
+      ansible.builtin.known_hosts:
+        path: "{{ github_runner_known_hosts_path }}"
+        name: "{{ item.ip }}"
+        key: "{{ item.key }}"
+        hash_host: true
+        state: present
+      loop: "{{ github_runner_pinned_host_entries | rejectattr('key', 'equalto', '') | list }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Scan runner host ed25519 keys for unpinned hosts
+      ansible.builtin.command: "ssh-keyscan -T 5 -t ed25519 {{ item.ip }}"
+      register: github_runner_keyscan_results
+      changed_when: false
+      failed_when: >
+        (github_runner_keyscan_results.stdout_lines | reject('match', '^#') | list | length) == 0
+      when:
+        - github_runner_trust_host_keys_from_keyscan
+        - github_runner_hosts_requiring_scan | length > 0
+      loop: "{{ github_runner_hosts_requiring_scan }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Add scanned runner host keys to known_hosts
       ansible.builtin.known_hosts:
         path: "{{ github_runner_known_hosts_path }}"
         name: "{{ item.item.ip }}"
@@ -91,6 +164,9 @@
         hash_host: true
         state: present
       loop: "{{ github_runner_keyscan_results.results }}"
+      when:
+        - github_runner_trust_host_keys_from_keyscan
+        - github_runner_hosts_requiring_scan | length > 0
       loop_control:
         label: "{{ item.item.name }}"
 
@@ -158,7 +234,7 @@
   gather_facts: true
   become: true
   vars:
-    github_runner_repo: "mkrakowitzer/Saas"
+    github_runner_repo: "{{ hostvars['localhost']['github_runner_repo'] | default('mkrakowitzer/Saas') }}"
     github_runner_url: "https://github.com/{{ github_runner_repo }}"
     github_runner_registration_token: "{{ hostvars['localhost']['github_runner_registration_token'] }}"
   roles:
