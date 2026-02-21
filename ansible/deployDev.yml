@@ -3,6 +3,11 @@
   hosts: localhost
   connection: local
   vars:
-    ansible_python_interpreter: /usr/bin/python3
+    ansible_python_interpreter: >-
+      {{
+        '/usr/bin/python3'
+        if lookup('ansible.builtin.fileglob', '/usr/bin/python3', errors='ignore')
+        else ansible_playbook_python
+      }}
   roles:
     - dev

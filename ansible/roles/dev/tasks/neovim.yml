@@ -91,6 +91,12 @@
     dest: "~/.config/yamllint/config"
     state: link
 
+- name: Ensure ~/.local/bin exists for task-only runs
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
+    state: directory
+    mode: "0750"
+
 - name: Install yamllint and mdformat
   ansible.builtin.pip:
     name: "{{ item }}"
