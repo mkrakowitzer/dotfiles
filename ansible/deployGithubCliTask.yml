@@ -1,5 +1,5 @@
 ---
-- name: Install my local dev setup
+- name: Install github cli task
   hosts: localhost
   connection: local
   gather_facts: true
@@ -7,7 +7,7 @@
     ansible_python_interpreter: /usr/bin/python3
 
   tasks:
-    - name: Run only the neovim tasks from the dev role
+    - name: Run only github cli tasks from the dev role
       ansible.builtin.include_role:
         name: dev
-        tasks_from: neovim
+        tasks_from: github_cli

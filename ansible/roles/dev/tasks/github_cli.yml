@@ -1,0 +1,20 @@
+---
+- name: Install github cli from github source
+  ansible.builtin.command: go install github.com/cli/cli/v2/cmd/gh@latest
+  environment:
+    PATH: "{{ ansible_facts['env']['HOME'] }}/.local/go/bin:{{ ansible_facts['env']['PATH'] }}"
+    GOBIN: "{{ ansible_facts['env']['HOME'] }}/.local/go/bin"
+    GOPATH: "{{ ansible_facts['env']['HOME'] }}/.local/go"
+
+- name: Check github cli binary
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/go/bin/gh"
+  register: github_cli_binary
+
+- name: Link github cli into ~/.local/bin
+  ansible.builtin.file:
+    src: "{{ ansible_facts['env']['HOME'] }}/.local/go/bin/gh"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.local/bin/gh"
+    state: link
+    force: true
+  when: github_cli_binary.stat.exists

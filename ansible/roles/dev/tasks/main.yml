@@ -81,6 +81,9 @@
 - name: Install golang
   ansible.builtin.include_tasks: golang.yml
 
+- name: Install github cli
+  ansible.builtin.include_tasks: github_cli.yml
+
 - name: Install  rust
   ansible.builtin.include_tasks: rust.yml
 

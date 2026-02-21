@@ -1,2 +1,23 @@
 ---
 # defaults file for dev
+
+dev_git_signing_key_default: ""
+dev_git_signing_key_candidates:
+  - "~/.ssh/id_ed25519_sk_rk_yubikey_no_touch"
+  - "~/.ssh/id_ed25519_sk"
+  - "~/.ssh/id_ed25519"
+
+# Optional per-machine overrides. Leave empty in shared config.
+# Example:
+# dev_git_signing_profiles:
+#   - name: personal
+#     gitdir: "~/personal/"
+#     user_name: "Merritt Krakowitzer"
+#     user_email: "merritt@krakowitzer.com"
+#     signing_key: "~/.ssh/id_ed25519"
+#   - name: work
+#     gitdir: "~/work/"
+#     user_name: "Merritt Krakowitzer"
+#     user_email: "merritt@company.com"
+#     signing_key: "~/.ssh/id_ed25519_work"
+dev_git_signing_profiles: []
