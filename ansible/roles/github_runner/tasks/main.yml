@@ -48,6 +48,8 @@
     create_home: false
     system: true
     state: present
+  notify:
+    - Restart github runner service
 
 - name: Create runner installation directories
   ansible.builtin.file:
