@@ -144,6 +144,30 @@
   environment:
     PATH: "{{ ansible_facts['env']['HOME'] }}/.local/n/bin:{{ ansible_facts['env']['PATH'] }}"
 
+- name: Install tree-sitter-cli
+  ansible.builtin.command: npm install -g tree-sitter-cli
+  args:
+    creates: "{{ ansible_facts['env']['HOME'] }}/.local/npm/bin/tree-sitter"
+  environment:
+    PATH: "{{ ansible_facts['env']['HOME'] }}/.local/n/bin:{{ ansible_facts['env']['PATH'] }}"
+
+- name: Check tree-sitter binary
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/npm/bin/tree-sitter"
+  register: dev_tree_sitter_binary
+
+- name: Link tree-sitter into ~/.local/bin
+  ansible.builtin.file:
+    src: "{{ ansible_facts['env']['HOME'] }}/.local/npm/bin/tree-sitter"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.local/bin/tree-sitter"
+    state: link
+    force: true
+  when: dev_tree_sitter_binary.stat.exists
+
+- name: Validate tree-sitter availability
+  ansible.builtin.command: "{{ ansible_facts['env']['HOME'] }}/.local/bin/tree-sitter --version"
+  changed_when: false
+
 - name: Download yq
   ansible.builtin.get_url:
     url: https://github.com/mikefarah/yq/releases/download/{{ dev_yq_version }}/yq_linux_amd64.tar.gz
