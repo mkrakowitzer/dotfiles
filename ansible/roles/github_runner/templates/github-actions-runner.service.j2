@@ -2,11 +2,18 @@
 Description=GitHub Actions Runner for {{ github_runner_repo }}
 After=network-online.target
 Wants=network-online.target
+{% if github_runner_install_docker %}
+After=docker.service
+Wants=docker.service
+{% endif %}
 
 [Service]
 Type=simple
 User={{ github_runner_user }}
 Group={{ github_runner_group }}
+{% if github_runner_install_docker %}
+SupplementaryGroups=docker
+{% endif %}
 WorkingDirectory={{ github_runner_install_dir }}
 ExecStart={{ github_runner_install_dir }}/run.sh
 Restart=always
