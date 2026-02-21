@@ -1,0 +1,145 @@
+---
+- name: Validate supported operating systems
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.os_family in ["Debian", "RedHat"]
+    fail_msg: "github_runner supports Debian and RedHat only. Found {{ ansible_facts.os_family }}."
+
+- name: Ensure runner registration token is provided
+  ansible.builtin.assert:
+    that:
+      - github_runner_registration_token | length > 0
+    fail_msg: "github_runner_registration_token is required."
+
+- name: Install runner dependencies on Debian hosts
+  ansible.builtin.apt:
+    name: "{{ github_runner_debian_packages }}"
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install runner dependencies on RedHat hosts
+  ansible.builtin.dnf:
+    name: "{{ github_runner_redhat_packages }}"
+    state: present
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Ensure runner group exists
+  ansible.builtin.group:
+    name: "{{ github_runner_group }}"
+    system: true
+    state: present
+
+- name: Ensure runner user exists
+  ansible.builtin.user:
+    name: "{{ github_runner_user }}"
+    group: "{{ github_runner_group }}"
+    shell: /usr/sbin/nologin
+    home: "{{ github_runner_install_root }}"
+    create_home: false
+    system: true
+    state: present
+
+- name: Create runner installation directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ github_runner_user }}"
+    group: "{{ github_runner_group }}"
+    mode: "0755"
+  loop:
+    - "{{ github_runner_install_root }}"
+    - "{{ github_runner_install_dir }}"
+
+- name: Download GitHub runner archive
+  ansible.builtin.get_url:
+    url: "{{ github_runner_download_url }}"
+    dest: "{{ github_runner_archive_path }}"
+    checksum: "{{ github_runner_checksum }}"
+    mode: "0644"
+
+- name: Read installed runner version marker
+  ansible.builtin.stat:
+    path: "{{ github_runner_version_marker_path }}"
+  register: github_runner_version_marker
+
+- name: Read runner version marker contents
+  ansible.builtin.slurp:
+    path: "{{ github_runner_version_marker_path }}"
+  register: github_runner_version_marker_content
+  when: github_runner_version_marker.stat.exists
+
+- name: Determine if runner archive extraction is required
+  ansible.builtin.set_fact:
+    github_runner_needs_extract: >-
+      {{
+        (not github_runner_version_marker.stat.exists)
+        or
+        ((github_runner_version_marker_content.content | b64decode | trim) != github_runner_version)
+      }}
+
+- name: Extract GitHub runner archive
+  ansible.builtin.unarchive:
+    src: "{{ github_runner_archive_path }}"
+    dest: "{{ github_runner_install_dir }}"
+    remote_src: true
+    owner: "{{ github_runner_user }}"
+    group: "{{ github_runner_group }}"
+    mode: "0755"
+  when: github_runner_needs_extract
+
+- name: Record installed runner version
+  ansible.builtin.copy:
+    dest: "{{ github_runner_version_marker_path }}"
+    content: "{{ github_runner_version }}\n"
+    owner: "{{ github_runner_user }}"
+    group: "{{ github_runner_group }}"
+    mode: "0644"
+  when: github_runner_needs_extract
+
+- name: Check whether runner is already configured
+  ansible.builtin.stat:
+    path: "{{ github_runner_install_dir }}/.runner"
+  register: github_runner_configured
+
+- name: Configure GitHub Actions runner
+  ansible.builtin.command:
+    argv:
+      - runuser
+      - -u
+      - "{{ github_runner_user }}"
+      - --
+      - ./config.sh
+      - --unattended
+      - --url
+      - "{{ github_runner_url }}"
+      - --token
+      - "{{ github_runner_registration_token }}"
+      - --name
+      - "{{ github_runner_runner_name }}"
+      - --work
+      - "{{ github_runner_work_dir }}"
+      - --labels
+      - "{{ github_runner_labels | join(',') }}"
+      - --replace
+  args:
+    chdir: "{{ github_runner_install_dir }}"
+  no_log: true
+  when: not github_runner_configured.stat.exists
+
+- name: Install github runner systemd unit
+  ansible.builtin.template:
+    src: github-actions-runner.service.j2
+    dest: "/etc/systemd/system/{{ github_runner_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart github runner service
+
+- name: Ensure github runner service is enabled and running
+  ansible.builtin.service:
+    name: "{{ github_runner_service_name }}"
+    state: started
+    enabled: true

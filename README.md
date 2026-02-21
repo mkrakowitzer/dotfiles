@@ -100,3 +100,15 @@ self-hosted CI runners (for example, GitHub Actions runners).
 ```bash
 ansible-playbook ansible/deployKvmRunners.yml
 ```
+
+## Configure GitHub self-hosted runners
+
+Set a token with permission to request runner registration tokens, then run:
+
+```bash
+export GITHUB_RUNNER_ADMIN_TOKEN=your_token_here
+ansible-playbook ansible/deployGithubRunners.yml
+```
+
+If `GITHUB_RUNNER_ADMIN_TOKEN` is not set, the playbook falls back to `gh api`
+using your existing GitHub CLI authentication.

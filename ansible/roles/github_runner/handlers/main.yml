@@ -1,0 +1,9 @@
+---
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Restart github runner service
+  ansible.builtin.service:
+    name: "{{ github_runner_service_name }}"
+    state: restarted

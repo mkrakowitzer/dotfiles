@@ -1,0 +1,37 @@
+---
+github_runner_version: "2.331.0"
+github_runner_arch: "x64"
+github_runner_platform: "linux"
+github_runner_archive: "actions-runner-{{ github_runner_platform }}-{{ github_runner_arch }}-{{ github_runner_version }}.tar.gz"
+github_runner_download_url: "https://github.com/actions/runner/releases/download/v{{ github_runner_version }}/{{ github_runner_archive }}"
+github_runner_checksum: "sha256:5fcc01bd546ba5c3f1291c2803658ebd3cedb3836489eda3be357d41bfcf28a7"
+
+github_runner_repo: "mkrakowitzer/Saas"
+github_runner_url: "https://github.com/{{ github_runner_repo }}"
+
+github_runner_user: "github-runner"
+github_runner_group: "github-runner"
+github_runner_install_root: "/opt/actions-runner"
+github_runner_install_dir: "{{ github_runner_install_root }}/runner"
+github_runner_archive_path: "/tmp/{{ github_runner_archive }}"
+github_runner_version_marker_path: "{{ github_runner_install_dir }}/.runner-version"
+github_runner_service_name: "github-actions-runner"
+github_runner_runner_name: "{{ inventory_hostname }}"
+github_runner_work_dir: "_work"
+github_runner_labels:
+  - "self-hosted"
+  - "linux"
+  - "x64"
+  - "kvm"
+
+github_runner_registration_token: ""
+
+github_runner_debian_packages:
+  - ca-certificates
+  - curl
+  - tar
+
+github_runner_redhat_packages:
+  - ca-certificates
+  - curl
+  - tar
