@@ -3,20 +3,23 @@
   ansible.builtin.raw: test ! -e "{{ ansible_facts['env']['HOME'] }}/.local/python" || rm -rf "{{ ansible_facts['env']['HOME'] }}/.local/python"
   changed_when: false
 
-- name: Get the python versions information
-  ansible.builtin.uri:
+- name: Download python versions information
+  ansible.builtin.get_url:
     url: "https://endoflife.date/api/python.json"
-    method: GET
-    return_content: true
-    headers:
-      Accept: "application/json"
+    dest: /tmp/python_versions.json
+    mode: "0644"
+    force: true
+  changed_when: false
+
+- name: Read python versions information
+  ansible.builtin.slurp:
+    src: /tmp/python_versions.json
   register: python_versions_response
-  failed_when: python_versions_response.status != 200
 
 - name: Set the latest Python version as a fact
   ansible.builtin.set_fact:
     # first should be the latest
-    python_version: "{{ python_versions_response.json[0].latest }}"
+    python_version: "{{ (python_versions_response.content | b64decode | from_json)[0].latest }}"
 
 - name: Download python tar file
   ansible.builtin.get_url:
