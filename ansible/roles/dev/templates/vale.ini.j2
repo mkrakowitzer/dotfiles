@@ -1,0 +1,5 @@
+StylesPath = {{ dev_vale_styles_path | regex_replace('^~', ansible_facts['user_dir']) }}
+MinAlertLevel = {{ dev_vale_min_alert_level }}
+
+[{{ dev_vale_file_globs }}]
+BasedOnStyles = {{ dev_vale_based_on_styles | join(', ') }}

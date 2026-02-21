@@ -163,7 +163,7 @@
 - name: Ensure libvirt network forwards traffic via NAT
   ansible.builtin.assert:
     that:
-      - "(kvm_runners_network_xml.stdout | default('')) | regex_search(\"mode\\s*=\\s*['\\\"]nat['\\\"]\")"
+      - "((kvm_runners_network_xml.stdout | default('')) | regex_search(\"mode\\s*=\\s*['\\\"]nat['\\\"]\")) is not none"
     fail_msg: "Network {{ kvm_runners_network_name }} is not configured for NAT forwarding."
 
 - name: Create VM image and cloud-init directories
@@ -184,7 +184,7 @@
 
 - name: Create VM qcow2 disks
   ansible.builtin.command: >
-    qemu-img create -f qcow2
+    qemu-img create -f qcow2 -F {{ kvm_runners_cloud_image_backing_format }}
     -b {{ kvm_runners_cloud_image_path }}
     {{ kvm_runners_image_dir }}/{{ item.name }}.qcow2
     {{ item.disk_size_gb }}G
