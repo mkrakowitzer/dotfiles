@@ -24,3 +24,11 @@ dev_git_signing_profiles: []
 
 # Pin gh for reproducible source installs. Override per machine if desired.
 dev_github_cli_version: "v2.87.2"
+
+# Vale defaults
+dev_vale_config_path: "~/.vale.ini"
+dev_vale_styles_path: "~/.config/vale/styles"
+dev_vale_min_alert_level: "warning"
+dev_vale_file_globs: "*.{md,txt,rst,adoc}"
+dev_vale_based_on_styles:
+  - "Vale"

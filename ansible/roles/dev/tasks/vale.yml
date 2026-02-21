@@ -38,3 +38,19 @@
     src: "/tmp/vale_{{ vale_version | regex_replace('^v', '') }}_{{ system_map[ansible_facts['system']] }}_{{ arch_map[ansible_facts['architecture']] }}.tar.gz"
     dest: "~/.local/bin"
     remote_src: true
+
+- name: Ensure Vale styles directory exists
+  ansible.builtin.file:
+    path: "{{ dev_vale_styles_path | regex_replace('^~', ansible_facts['user_dir']) }}"
+    state: directory
+    owner: "{{ dev_username }}"
+    group: "{{ effective_group }}"
+    mode: "0750"
+
+- name: Write default Vale configuration
+  ansible.builtin.template:
+    src: vale.ini.j2
+    dest: "{{ dev_vale_config_path | regex_replace('^~', ansible_facts['user_dir']) }}"
+    owner: "{{ dev_username }}"
+    group: "{{ effective_group }}"
+    mode: "0640"
