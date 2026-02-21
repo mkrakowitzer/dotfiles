@@ -9,7 +9,10 @@
   ansible.builtin.git:
     repo: https://github.com/Yubico/yubico-piv-tool.git
     dest: "/tmp/yubico-piv-tool"
+    accept_hostkey: true
     depth: 1
+  environment:
+    GIT_CONFIG_GLOBAL: /dev/null
 
 - name: Make build directory
   ansible.builtin.file:
@@ -37,7 +40,7 @@
   ansible.builtin.pip:
     name: "{{ item }}"
     state: present
-    executable: "{{ ansible_env.HOME }}/.local/python/bin/pip"
+    executable: "{{ ansible_facts['env']['HOME'] }}/.local/python/bin/pip"
   with_items:
     - "solo1"
     - "fido2==0.9.3"

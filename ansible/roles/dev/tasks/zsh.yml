@@ -2,12 +2,12 @@
 - name: Set shell path for macOS
   ansible.builtin.set_fact:
     shell_path: "/opt/homebrew/bin/zsh"
-  when: ansible_os_family == "Darwin"
+  when: ansible_facts['os_family'] == "Darwin"
 
 - name: Set shell path for Linux
   ansible.builtin.set_fact:
     shell_path: "/usr/bin/zsh"
-  when: ansible_os_family == "RedHat" or ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "RedHat" or ansible_facts['os_family'] == "Debian"
 
 - name: Add shell to /etc/shells
   become: true
@@ -15,7 +15,7 @@
     path: /etc/shells
     line: "{{ shell_path }}"
     state: present
-  when: ansible_os_family == "Darwin"
+  when: ansible_facts['os_family'] == "Darwin"
 
 - name: Ensure zsh is the default shell
   become: true
@@ -69,8 +69,11 @@
   ansible.builtin.git:
     repo: https://github.com/romkatv/powerlevel10k.git
     dest: "~/.oh-my-zsh/custom/themes/powerlevel10k"
+    accept_hostkey: true
     update: true
     depth: 1
+  environment:
+    GIT_CONFIG_GLOBAL: /dev/null
 
 - name: Set font directory based on OS type
   ansible.builtin.set_fact:
@@ -97,4 +100,4 @@
 
 - name: Reload font cache on Linux
   ansible.builtin.command: fc-cache -f -v
-  when: ansible_system == 'Linux'
+  when: ansible_facts['system'] == 'Linux'

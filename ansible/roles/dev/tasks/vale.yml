@@ -22,7 +22,7 @@
       Linux: "Linux"
       Darwin: "macOS"
   ansible.builtin.get_url:
-    url: "https://github.com/errata-ai/vale/releases/download/{{ vale_version }}/vale_{{ vale_version | regex_replace('^v', '') }}_{{ system_map[ansible_system] }}_{{ arch_map[ansible_architecture] }}.tar.gz"
+    url: "https://github.com/errata-ai/vale/releases/download/{{ vale_version }}/vale_{{ vale_version | regex_replace('^v', '') }}_{{ system_map[ansible_facts['system']] }}_{{ arch_map[ansible_facts['architecture']] }}.tar.gz"
     dest: "/tmp"
     mode: 0644
 
@@ -35,6 +35,6 @@
       Linux: "Linux"
       Darwin: "macOS"
   ansible.builtin.unarchive:
-    src: "/tmp/vale_{{ vale_version | regex_replace('^v', '') }}_{{ system_map[ansible_system] }}_{{ arch_map[ansible_architecture] }}.tar.gz"
+    src: "/tmp/vale_{{ vale_version | regex_replace('^v', '') }}_{{ system_map[ansible_facts['system']] }}_{{ arch_map[ansible_facts['architecture']] }}.tar.gz"
     dest: "~/.local/bin"
     remote_src: true

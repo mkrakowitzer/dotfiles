@@ -3,7 +3,10 @@
   ansible.builtin.git:
     repo: https://github.com/tfutils/tfenv.git
     dest: ~/.tfenv
+    accept_hostkey: true
     depth: 1
+  environment:
+    GIT_CONFIG_GLOBAL: /dev/null
 
 - name: Create tfenv symlink
   ansible.builtin.file:

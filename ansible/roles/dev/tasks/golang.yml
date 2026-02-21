@@ -1,7 +1,7 @@
 ---
 - name: Remove old golang
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.local/go"
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/go"
     state: absent
   become: true
 
@@ -21,13 +21,13 @@
 
 - name: Download golang binary
   ansible.builtin.get_url:
-    url: "https://golang.org/dl/{{ golang_version }}.{{ ansible_system | lower }}-{{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}.tar.gz"
-    dest: "/tmp/{{ golang_version }}.{{ ansible_system | lower }}-{{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}.tar.gz"
+    url: "https://golang.org/dl/{{ golang_version }}.{{ ansible_facts['system'] | lower }}-{{ 'amd64' if ansible_facts['architecture'] == 'x86_64' else ansible_facts['architecture'] }}.tar.gz"
+    dest: "/tmp/{{ golang_version }}.{{ ansible_facts['system'] | lower }}-{{ 'amd64' if ansible_facts['architecture'] == 'x86_64' else ansible_facts['architecture'] }}.tar.gz"
     mode: 0644
 
 - name: Uncompress Golang binary
   ansible.builtin.unarchive:
-    src: "/tmp/{{ golang_version }}.{{ ansible_system | lower }}-{{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}.tar.gz"
+    src: "/tmp/{{ golang_version }}.{{ ansible_facts['system'] | lower }}-{{ 'amd64' if ansible_facts['architecture'] == 'x86_64' else ansible_facts['architecture'] }}.tar.gz"
     dest: ~/.local
     remote_src: true
     creates: ~/.local/go

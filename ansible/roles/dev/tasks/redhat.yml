@@ -5,6 +5,12 @@
     name: "epel-release"
     state: present
 
+- name: Enable crb repository
+  become: true
+  ansible.builtin.command: dnf config-manager --set-enabled crb
+  changed_when: false
+  failed_when: false
+
 - name: Install packages on Red Hat-based systems
   become: true
   ansible.builtin.dnf:

@@ -9,8 +9,11 @@
   ansible.builtin.git:
     repo: https://github.com/neovim/neovim.git
     dest: "/tmp/neovim"
+    accept_hostkey: true
     depth: 1
     version: stable
+  environment:
+    GIT_CONFIG_GLOBAL: /dev/null
 
 - name: Neovim Make
   become: true
@@ -22,6 +25,9 @@
   ansible.builtin.git:
     repo: https://github.com/mkrakowitzer/neovimrc.git
     dest: "~/personal/nvim"
+    accept_hostkey: true
+  environment:
+    GIT_CONFIG_GLOBAL: /dev/null
 
 - name: Remove old neovim config
   ansible.builtin.file:
@@ -37,23 +43,23 @@
 - name: Install goimports
   ansible.builtin.command: go install -v golang.org/x/tools/cmd/goimports@latest
   environment:
-    PATH: "{{ ansible_env.HOME }}/.local/go/bin:{{ ansible_env.PATH }}"
-    GOBIN: "{{ ansible_env.HOME }}/.local/go/bin"
-    GOPATH: "{{ ansible_env.HOME }}/.local/go"
+    PATH: "{{ ansible_facts['env']['HOME'] }}/.local/go/bin:{{ ansible_facts['env']['PATH'] }}"
+    GOBIN: "{{ ansible_facts['env']['HOME'] }}/.local/go/bin"
+    GOPATH: "{{ ansible_facts['env']['HOME'] }}/.local/go"
 
 - name: Install golangci-lint
   ansible.builtin.command: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
   environment:
-    PATH: "{{ ansible_env.HOME }}/.local/go/bin:{{ ansible_env.PATH }}"
-    GOBIN: "{{ ansible_env.HOME }}/.local/go/bin"
-    GOPATH: "{{ ansible_env.HOME }}/.local/go"
+    PATH: "{{ ansible_facts['env']['HOME'] }}/.local/go/bin:{{ ansible_facts['env']['PATH'] }}"
+    GOBIN: "{{ ansible_facts['env']['HOME'] }}/.local/go/bin"
+    GOPATH: "{{ ansible_facts['env']['HOME'] }}/.local/go"
 
 - name: Install goimports-reviser
   ansible.builtin.command: go install -v github.com/incu6us/goimports-reviser/v3@latest
   environment:
-    PATH: "{{ ansible_env.HOME }}/.local/go/bin:{{ ansible_env.PATH }}"
-    GOBIN: "{{ ansible_env.HOME }}/.local/go/bin"
-    GOPATH: "{{ ansible_env.HOME }}/.local/go"
+    PATH: "{{ ansible_facts['env']['HOME'] }}/.local/go/bin:{{ ansible_facts['env']['PATH'] }}"
+    GOBIN: "{{ ansible_facts['env']['HOME'] }}/.local/go/bin"
+    GOPATH: "{{ ansible_facts['env']['HOME'] }}/.local/go"
 
 - name: Create yamllint directory
   ansible.builtin.file:
@@ -71,7 +77,7 @@
   ansible.builtin.pip:
     name: "{{ item }}"
     state: present
-    executable: "{{ ansible_env.HOME }}/.local/python/bin/pip"
+    executable: "{{ ansible_facts['env']['HOME'] }}/.local/python/bin/pip"
   with_items:
     - yamllint
     - mdformat
@@ -81,12 +87,12 @@
 - name: Install fixjson
   ansible.builtin.command: npm install -g fixjson
   environment:
-    PATH: "{{ ansible_env.HOME }}/.local/n/bin:{{ ansible_env.PATH }}"
+    PATH: "{{ ansible_facts['env']['HOME'] }}/.local/n/bin:{{ ansible_facts['env']['PATH'] }}"
 
 - name: Install markdownlint-cl
   ansible.builtin.command: npm install -g markdownlint-cli
   environment:
-    PATH: "{{ ansible_env.HOME }}/.local/n/bin:{{ ansible_env.PATH }}"
+    PATH: "{{ ansible_facts['env']['HOME'] }}/.local/n/bin:{{ ansible_facts['env']['PATH'] }}"
 
 - name: Download yq
   ansible.builtin.get_url:
