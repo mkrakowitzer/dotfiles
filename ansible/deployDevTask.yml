@@ -1,7 +1,15 @@
 ---
 - name: Install my local dev setup
   hosts: localhost
-  gather_facts: false
+  connection: local
+  gather_facts: true
+  vars:
+    ansible_python_interpreter: >-
+      {{
+        '/usr/bin/python3'
+        if lookup('ansible.builtin.fileglob', '/usr/bin/python3', errors='ignore')
+        else ansible_playbook_python
+      }}
 
   tasks:
     - name: Run only the neovim tasks from the dev role

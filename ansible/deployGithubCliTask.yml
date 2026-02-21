@@ -1,7 +1,8 @@
 ---
-- name: Install my local dev setup
+- name: Install github cli task
   hosts: localhost
   connection: local
+  gather_facts: true
   vars:
     ansible_python_interpreter: >-
       {{
@@ -9,5 +10,9 @@
         if lookup('ansible.builtin.fileglob', '/usr/bin/python3', errors='ignore')
         else ansible_playbook_python
       }}
-  roles:
-    - dev
+
+  tasks:
+    - name: Run only github cli tasks from the dev role
+      ansible.builtin.include_role:
+        name: dev
+        tasks_from: github_cli

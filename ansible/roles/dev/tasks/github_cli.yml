@@ -1,0 +1,48 @@
+---
+- name: Ensure ~/.local/bin exists for task-only runs
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
+    state: directory
+    mode: "0750"
+
+- name: Check go binary availability
+  ansible.builtin.command: go version
+  register: go_binary_check
+  changed_when: false
+  failed_when: false
+  environment:
+    PATH: "{{ ansible_facts['env']['HOME'] }}/.local/go/bin:{{ ansible_facts['env']['PATH'] }}"
+
+- name: Fail when go binary is missing
+  ansible.builtin.fail:
+    msg: "Go is required to install github cli from source. Run the full dev role first or install Go."
+  when: go_binary_check.rc != 0
+
+- name: Check installed github cli version
+  ansible.builtin.command: "{{ ansible_facts['env']['HOME'] }}/.local/go/bin/gh --version"
+  register: github_cli_current_version
+  changed_when: false
+  failed_when: false
+
+- name: Install github cli from github source
+  ansible.builtin.command: "go install github.com/cli/cli/v2/cmd/gh@{{ dev_github_cli_version }}"
+  environment:
+    PATH: "{{ ansible_facts['env']['HOME'] }}/.local/go/bin:{{ ansible_facts['env']['PATH'] }}"
+    GOBIN: "{{ ansible_facts['env']['HOME'] }}/.local/go/bin"
+    GOPATH: "{{ ansible_facts['env']['HOME'] }}/.local/go"
+  when:
+    - github_cli_current_version.rc != 0
+      or (dev_github_cli_version | regex_replace('^v', '')) not in github_cli_current_version.stdout
+
+- name: Check github cli binary
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/go/bin/gh"
+  register: github_cli_binary
+
+- name: Link github cli into ~/.local/bin
+  ansible.builtin.file:
+    src: "{{ ansible_facts['env']['HOME'] }}/.local/go/bin/gh"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.local/bin/gh"
+    state: link
+    force: true
+  when: github_cli_binary.stat.exists

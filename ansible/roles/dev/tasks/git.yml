@@ -1,10 +1,81 @@
 ---
 # https://pre-commit.com/
+- name: Check custom python pip path
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/python/bin/pip"
+  register: custom_python_pip
+  changed_when: false
+
+- name: Select pip executable for git tooling
+  ansible.builtin.set_fact:
+    dev_git_pip_executable: >-
+      {{
+        (ansible_facts['env']['HOME'] ~ '/.local/python/bin/pip')
+        if custom_python_pip.stat.exists
+        else 'pip3'
+      }}
+
+- name: Check pip executable for git tooling
+  ansible.builtin.command:
+    argv:
+      - "{{ dev_git_pip_executable }}"
+      - --version
+  register: git_pip_check
+  changed_when: false
+  failed_when: false
+
 - name: Install pre-commit
   ansible.builtin.pip:
     name: pre-commit
     state: present
-    executable: "{{ ansible_facts['env']['HOME'] }}/.local/python/bin/pip"
+    executable: "{{ dev_git_pip_executable }}"
+  when: git_pip_check.rc | int < 1
+
+- name: Skip pre-commit install when pip is unavailable
+  ansible.builtin.debug:
+    msg: "Skipping pre-commit install because pip is not available on this machine."
+  when: git_pip_check.rc | int > 0
+
+- name: Inspect available Git signing keys
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: "{{ dev_git_signing_key_candidates }}"
+  register: git_signing_key_candidates_stat
+  changed_when: false
+
+- name: Determine default signing key for this machine
+  ansible.builtin.set_fact:
+    dev_git_signing_key_default_effective: >-
+      {{
+        (dev_git_signing_key_default | default("") | trim)
+        if (dev_git_signing_key_default | default("") | trim | length > 0)
+        else (
+          (
+            git_signing_key_candidates_stat.results
+            | selectattr("stat.exists", "equalto", true)
+            | map(attribute="stat.path")
+            | list
+            | first
+          ) | default("~/.ssh/id_ed25519", true)
+        )
+      }}
+
+- name: Determine signing profiles for this machine
+  ansible.builtin.set_fact:
+    dev_git_signing_profiles_effective: >-
+      {{
+        dev_git_signing_profiles
+        if (dev_git_signing_profiles | length > 0)
+        else [
+          {
+            "name": "personal",
+            "gitdir": (dev_personal | regex_replace("/+$", "")) ~ "/",
+            "user_name": dev_gitusername,
+            "user_email": dev_email,
+            "signing_key": dev_git_signing_key_default_effective
+          }
+        ]
+      }}
 
 - name: Read current global git config values
   ansible.builtin.command:
@@ -30,7 +101,7 @@
     - name: gpg.ssh.allowedSignersFile
       value: "~/.ssh/allowed_signers"
     - name: user.signingKey
-      value: "~/.ssh/id_ed25519_sk_rk_yubikey_no_touch"
+      value: "{{ dev_git_signing_key_default_effective }}"
     - name: commit.gpgSign
       value: "true"
     - name: init.defaultBranch
@@ -51,4 +122,52 @@
   loop: "{{ git_config_current.results }}"
   loop_control:
     label: "{{ item.item.name }}"
-  when: item.rc != 0 or item.stdout != item.item.value
+  when: item.rc | int > 0 or (item.stdout | string) not in [item.item.value]
+
+- name: Ensure ~/.gitconfig.d exists
+  ansible.builtin.file:
+    path: "~/.gitconfig.d"
+    state: directory
+    mode: "0700"
+
+- name: Write git signing profiles
+  ansible.builtin.copy:
+    dest: "~/.gitconfig.d/{{ item.name }}.gitconfig"
+    mode: "0600"
+    content: |
+      [user]
+          name = {{ item.user_name }}
+          email = {{ item.user_email }}
+          signingKey = {{ item.signing_key }}
+  loop: "{{ dev_git_signing_profiles_effective }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Read current includeIf git profile paths
+  ansible.builtin.command:
+    argv:
+      - git
+      - config
+      - --global
+      - --get
+      - "includeIf.gitdir:{{ item.gitdir | regex_replace('/+$', '') }}/.path"
+  loop: "{{ dev_git_signing_profiles_effective }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: git_includeif_current
+  changed_when: false
+  failed_when: false
+
+- name: Configure includeIf git profile paths
+  ansible.builtin.command:
+    argv:
+      - git
+      - config
+      - --global
+      - --replace-all
+      - "includeIf.gitdir:{{ item.item.gitdir | regex_replace('/+$', '') }}/.path"
+      - "~/.gitconfig.d/{{ item.item.name }}.gitconfig"
+  loop: "{{ git_includeif_current.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when: item.rc | int > 0 or (item.stdout | string) not in [("~/.gitconfig.d/" ~ item.item.name ~ ".gitconfig")]

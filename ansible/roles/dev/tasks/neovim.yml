@@ -21,6 +21,18 @@
   args:
     chdir: "/tmp/neovim"
 
+- name: Check neovim config git status
+  ansible.builtin.command:
+    argv:
+      - git
+      - -C
+      - "{{ ansible_facts['env']['HOME'] }}/personal/nvim"
+      - status
+      - --porcelain
+  register: neovim_config_git_status
+  changed_when: false
+  failed_when: false
+
 - name: Clone neovim config
   ansible.builtin.git:
     repo: https://github.com/mkrakowitzer/neovimrc.git
@@ -28,6 +40,12 @@
     accept_hostkey: true
   environment:
     GIT_CONFIG_GLOBAL: /dev/null
+  when: neovim_config_git_status.rc | int > 0 or (neovim_config_git_status.stdout | trim | length) < 1
+
+- name: Skip neovim config update when local modifications exist
+  ansible.builtin.debug:
+    msg: "Skipping neovim config update because local modifications exist in ~/personal/nvim."
+  when: neovim_config_git_status.rc | int < 1 and (neovim_config_git_status.stdout | trim | length) > 0
 
 - name: Remove old neovim config
   ansible.builtin.file:
@@ -73,6 +91,12 @@
     dest: "~/.config/yamllint/config"
     state: link
 
+- name: Ensure ~/.local/bin exists for task-only runs
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
+    state: directory
+    mode: "0750"
+
 - name: Install yamllint and mdformat
   ansible.builtin.pip:
     name: "{{ item }}"
@@ -83,6 +107,32 @@
     - mdformat
     - ansible-lint
     - codespell
+
+- name: Check golangci-lint binary
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/go/bin/golangci-lint"
+  register: golangci_lint_binary
+
+- name: Link golangci-lint into ~/.local/bin
+  ansible.builtin.file:
+    src: "{{ ansible_facts['env']['HOME'] }}/.local/go/bin/golangci-lint"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.local/bin/golangci-lint"
+    state: link
+    force: true
+  when: golangci_lint_binary.stat.exists
+
+- name: Check codespell binary
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/python/bin/codespell"
+  register: codespell_binary
+
+- name: Link codespell into ~/.local/bin
+  ansible.builtin.file:
+    src: "{{ ansible_facts['env']['HOME'] }}/.local/python/bin/codespell"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.local/bin/codespell"
+    state: link
+    force: true
+  when: codespell_binary.stat.exists
 
 - name: Install fixjson
   ansible.builtin.command: npm install -g fixjson
