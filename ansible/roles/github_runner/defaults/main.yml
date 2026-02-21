@@ -30,9 +30,11 @@ github_runner_registration_token: ""
 github_runner_debian_packages:
   - ca-certificates
   - curl
+  - podman
   - tar
 
 github_runner_redhat_packages:
   - ca-certificates
   - curl
+  - podman
   - tar
