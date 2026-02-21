@@ -24,6 +24,13 @@
     state: present
   when: ansible_facts.os_family == "RedHat"
 
+- name: Ensure docker service is enabled and running
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true
+  when: github_runner_install_docker
+
 - name: Ensure runner group exists
   ansible.builtin.group:
     name: "{{ github_runner_group }}"
@@ -34,6 +41,8 @@
   ansible.builtin.user:
     name: "{{ github_runner_user }}"
     group: "{{ github_runner_group }}"
+    groups: "{{ ['docker'] if github_runner_install_docker else omit }}"
+    append: "{{ true if github_runner_install_docker else omit }}"
     shell: /usr/sbin/nologin
     home: "{{ github_runner_install_root }}"
     create_home: false

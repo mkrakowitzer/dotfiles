@@ -26,13 +26,18 @@ github_runner_labels:
   - "kvm"
 
 github_runner_registration_token: ""
+github_runner_install_docker: true
 
 github_runner_debian_packages:
   - ca-certificates
   - curl
+  - docker.io
+  - podman
   - tar
 
 github_runner_redhat_packages:
   - ca-certificates
   - curl
+  - docker
+  - podman
   - tar
