@@ -94,8 +94,8 @@ mv id_ed25519_sk_rk.pub id_ed25519_sk_rk_yubikey_touch.pub
 ## Provisioning KVM runner VMs
 
 This repo includes an Ansible playbook and role to prepare a KVM host and
-provision Ubuntu cloud image VMs (`runner-01` through `runner-04`) for future
-self-hosted runner use.
+provision Ubuntu cloud image VMs (`runner-01` through `runner-04`) for
+self-hosted CI runners (for example, GitHub Actions runners).
 
 ```bash
 ansible-playbook ansible/deployKvmRunners.yml

@@ -34,8 +34,36 @@ Key variables:
 - `kvm_runners_network_name`: libvirt network name (default: `default`)
 - `kvm_runners_default_ssh_public_key_path`: local default key path
 - `kvm_runners_ssh_authorized_keys`: SSH keys injected by cloud-init
+- `kvm_runners_vm_user_passwordless_sudo`: grant passwordless sudo to VM user (default: `true`)
 
 By default, the role reads `~/.ssh/id_ed25519.pub` from the control host.
+
+## Customizing VM definitions
+
+Override `kvm_runners_vms` to set names and sizing:
+
+```yaml
+kvm_runners_vms:
+  - name: runner-01
+    vcpus: 4
+    memory_mb: 8192
+    disk_size_gb: 50
+  - name: runner-02
+    vcpus: 2
+    memory_mb: 4096
+    disk_size_gb: 30
+```
+
+## Security and lifecycle notes
+
+- By default, the VM user is configured with passwordless sudo for bootstrap convenience.
+  Set `kvm_runners_vm_user_passwordless_sudo: false` to require a password.
+- Cloud-init data is applied at first boot. If you change cloud-init templates for existing VMs,
+  recreate the VMs to fully apply those changes.
+- This role provisions VMs but does not remove them. To tear down:
+  - `virsh destroy <name>`
+  - `virsh undefine <name> --remove-all-storage`
+  - delete any remaining files under `{{ kvm_runners_image_dir }}`
 
 ## Example playbook
 

@@ -2,19 +2,26 @@
 hostname: {{ item.name }}
 manage_etc_hosts: true
 package_update: true
+package_upgrade: true
 packages:
   - qemu-guest-agent
 runcmd:
   - [systemctl, enable, --now, qemu-guest-agent]
 {% if kvm_runners_effective_ssh_authorized_keys | length > 0 %}
 users:
+{% if kvm_runners_vm_user != 'ubuntu' %}
   - default
+{% endif %}
   - name: {{ kvm_runners_vm_user }}
     groups:
       - adm
       - sudo
     shell: /bin/bash
+{% if kvm_runners_vm_user_passwordless_sudo | default(true) %}
     sudo: ALL=(ALL) NOPASSWD:ALL
+{% else %}
+    sudo: ALL=(ALL) ALL
+{% endif %}
     lock_passwd: true
     ssh_authorized_keys:
 {% for ssh_key in kvm_runners_effective_ssh_authorized_keys %}

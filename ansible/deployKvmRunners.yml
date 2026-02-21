@@ -1,6 +1,7 @@
 ---
 - name: Provision KVM runner virtual machines
   hosts: localhost
+  connection: local
   gather_facts: true
   become: true
 

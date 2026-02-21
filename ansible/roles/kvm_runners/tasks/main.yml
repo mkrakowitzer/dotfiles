@@ -5,6 +5,28 @@
       - ansible_facts.os_family in ["Debian", "RedHat"]
     fail_msg: "kvm_runners supports Debian and RedHat only. Found {{ ansible_facts.os_family }}."
 
+- name: Validate VM list is provided
+  ansible.builtin.assert:
+    that:
+      - kvm_runners_vms is sequence
+      - kvm_runners_vms | length > 0
+    fail_msg: "kvm_runners_vms must be a non-empty list of VM definitions."
+
+- name: Validate each VM definition has required fields
+  ansible.builtin.assert:
+    that:
+      - item.name is defined
+      - item.vcpus is defined
+      - item.memory_mb is defined
+      - item.disk_size_gb is defined
+      - (item.vcpus | int) > 0
+      - (item.memory_mb | int) > 0
+      - (item.disk_size_gb | int) > 0
+    fail_msg: "Invalid VM definition: {{ item | to_nice_json }}"
+  loop: "{{ kvm_runners_vms }}"
+  loop_control:
+    label: "{{ item.name | default('unnamed-vm') }}"
+
 - name: Install KVM dependencies on Debian hosts
   ansible.builtin.apt:
     name: "{{ kvm_runners_debian_packages }}"
@@ -25,7 +47,9 @@
     enabled: true
 
 - name: Validate required binaries are available
-  ansible.builtin.command: "which {{ item }}"
+  ansible.builtin.shell: "command -v {{ item }}"
+  args:
+    executable: /bin/bash
   changed_when: false
   loop:
     - virsh
@@ -58,11 +82,54 @@
   changed_when: false
   failed_when: false
 
-- name: Define default libvirt network when missing
-  ansible.builtin.command: virsh net-define /usr/share/libvirt/networks/default.xml
+- name: Check for default libvirt network XML in /usr/share
+  ansible.builtin.stat:
+    path: /usr/share/libvirt/networks/default.xml
+  register: kvm_runners_default_net_xml_usr_share
   when:
     - kvm_runners_network_info.rc != 0
     - kvm_runners_network_name == "default"
+
+- name: Check for default libvirt network XML in /etc/libvirt/qemu
+  ansible.builtin.stat:
+    path: /etc/libvirt/qemu/networks/default.xml
+  register: kvm_runners_default_net_xml_etc
+  when:
+    - kvm_runners_network_info.rc != 0
+    - kvm_runners_network_name == "default"
+
+- name: Set default libvirt network XML path when found
+  ansible.builtin.set_fact:
+    kvm_runners_default_net_xml_path: >-
+      {{
+        '/usr/share/libvirt/networks/default.xml'
+        if (kvm_runners_default_net_xml_usr_share.stat.exists | default(false))
+        else '/etc/libvirt/qemu/networks/default.xml'
+      }}
+  when:
+    - kvm_runners_network_info.rc != 0
+    - kvm_runners_network_name == "default"
+    - (kvm_runners_default_net_xml_usr_share.stat.exists | default(false)) or
+      (kvm_runners_default_net_xml_etc.stat.exists | default(false))
+
+- name: Fail when default libvirt network XML is not found
+  ansible.builtin.fail:
+    msg: >-
+      Default libvirt network XML not found in known locations:
+      /usr/share/libvirt/networks/default.xml,
+      /etc/libvirt/qemu/networks/default.xml.
+  when:
+    - kvm_runners_network_info.rc != 0
+    - kvm_runners_network_name == "default"
+    - not (kvm_runners_default_net_xml_usr_share.stat.exists | default(false))
+    - not (kvm_runners_default_net_xml_etc.stat.exists | default(false))
+
+- name: Define default libvirt network when missing
+  ansible.builtin.command: "virsh net-define {{ kvm_runners_default_net_xml_path }}"
+  when:
+    - kvm_runners_network_info.rc != 0
+    - kvm_runners_network_name == "default"
+    - kvm_runners_default_net_xml_path is defined
 
 - name: Ensure non-default network exists
   ansible.builtin.assert:
@@ -72,7 +139,12 @@
 
 - name: Enable libvirt network autostart
   ansible.builtin.command: "virsh net-autostart {{ kvm_runners_network_name }}"
-  changed_when: false
+  register: kvm_runners_net_autostart
+  changed_when: >
+    kvm_runners_net_autostart.rc == 0 and
+    'already' not in
+    (((kvm_runners_net_autostart.stdout | default('')) ~
+    (kvm_runners_net_autostart.stderr | default(''))) | lower)
 
 - name: Ensure libvirt network is active
   ansible.builtin.command: "virsh net-start {{ kvm_runners_network_name }}"
@@ -80,9 +152,8 @@
   changed_when: kvm_runners_net_start.rc == 0
   failed_when: >
     kvm_runners_net_start.rc != 0 and
-    'already active' not in
-    (((kvm_runners_net_start.stdout | default('')) ~
-    (kvm_runners_net_start.stderr | default(''))) | lower)
+    'already active' not in (kvm_runners_net_start.stdout | default('') | lower) and
+    'already active' not in (kvm_runners_net_start.stderr | default('') | lower)
 
 - name: Read libvirt network XML
   ansible.builtin.command: "virsh net-dumpxml {{ kvm_runners_network_name }}"
@@ -92,7 +163,7 @@
 - name: Ensure libvirt network forwards traffic via NAT
   ansible.builtin.assert:
     that:
-      - "'mode=\"nat\"' in kvm_runners_network_xml.stdout or \"mode='nat'\" in kvm_runners_network_xml.stdout"
+      - "(kvm_runners_network_xml.stdout | default('')) | regex_search(\"mode\\s*=\\s*['\\\"]nat['\\\"]\")"
     fail_msg: "Network {{ kvm_runners_network_name }} is not configured for NAT forwarding."
 
 - name: Create VM image and cloud-init directories
@@ -113,7 +184,7 @@
 
 - name: Create VM qcow2 disks
   ansible.builtin.command: >
-    qemu-img create -f qcow2 -F qcow2
+    qemu-img create -f qcow2
     -b {{ kvm_runners_cloud_image_path }}
     {{ kvm_runners_image_dir }}/{{ item.name }}.qcow2
     {{ item.disk_size_gb }}G
@@ -195,7 +266,12 @@
 
 - name: Ensure VM domains autostart
   ansible.builtin.command: "virsh autostart {{ item.name }}"
-  changed_when: false
+  register: kvm_runners_vm_autostart
+  changed_when: >
+    kvm_runners_vm_autostart.rc == 0 and
+    'already' not in
+    (((kvm_runners_vm_autostart.stdout | default('')) ~
+    (kvm_runners_vm_autostart.stderr | default(''))) | lower)
   loop: "{{ kvm_runners_vms }}"
   loop_control:
     label: "{{ item.name }}"
