@@ -24,6 +24,9 @@ Important variables in `defaults/main.yml`:
 - `github_runner_version`: runner version (default `2.331.0`)
 - `github_runner_registration_token`: short-lived registration token
 - `github_runner_config_marker_path`: local marker used to detect runner config drift
+- `github_runner_install_build_tools`: install build toolchain packages (default `true`)
+- `github_runner_debian_build_packages`: Debian build package list (default includes `build-essential`)
+- `github_runner_redhat_build_packages`: RedHat build package list (default includes `make`, `gcc`, `gcc-c++`)
 
 The role re-runs `config.sh --replace` when runner configuration inputs change
 (`github_runner_url`, `github_runner_runner_name`, `github_runner_work_dir`,

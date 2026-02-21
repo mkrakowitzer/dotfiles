@@ -27,6 +27,7 @@ github_runner_labels:
 
 github_runner_registration_token: ""
 github_runner_install_docker: true
+github_runner_install_build_tools: true
 
 github_runner_debian_packages:
   - ca-certificates
@@ -41,3 +42,11 @@ github_runner_redhat_packages:
   - docker
   - podman
   - tar
+
+github_runner_debian_build_packages:
+  - build-essential
+
+github_runner_redhat_build_packages:
+  - gcc
+  - gcc-c++
+  - make

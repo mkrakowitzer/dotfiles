@@ -18,11 +18,27 @@
     update_cache: true
   when: ansible_facts.os_family == "Debian"
 
+- name: Install build tools on Debian hosts
+  ansible.builtin.apt:
+    name: "{{ github_runner_debian_build_packages }}"
+    state: present
+  when:
+    - ansible_facts.os_family == "Debian"
+    - github_runner_install_build_tools
+
 - name: Install runner dependencies on RedHat hosts
   ansible.builtin.dnf:
     name: "{{ github_runner_redhat_packages }}"
     state: present
   when: ansible_facts.os_family == "RedHat"
+
+- name: Install build tools on RedHat hosts
+  ansible.builtin.dnf:
+    name: "{{ github_runner_redhat_build_packages }}"
+    state: present
+  when:
+    - ansible_facts.os_family == "RedHat"
+    - github_runner_install_build_tools
 
 - name: Ensure docker service is enabled and running
   ansible.builtin.service:
