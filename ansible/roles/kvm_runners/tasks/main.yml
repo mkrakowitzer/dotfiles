@@ -1,0 +1,238 @@
+---
+- name: Validate supported operating systems
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.os_family in ["Debian", "RedHat"]
+    fail_msg: "kvm_runners supports Debian and RedHat only. Found {{ ansible_facts.os_family }}."
+
+- name: Install KVM dependencies on Debian hosts
+  ansible.builtin.apt:
+    name: "{{ kvm_runners_debian_packages }}"
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install KVM dependencies on RedHat hosts
+  ansible.builtin.dnf:
+    name: "{{ kvm_runners_redhat_packages }}"
+    state: present
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Enable and start libvirtd
+  ansible.builtin.service:
+    name: libvirtd
+    state: started
+    enabled: true
+
+- name: Validate required binaries are available
+  ansible.builtin.command: "which {{ item }}"
+  changed_when: false
+  loop:
+    - virsh
+    - virt-install
+    - qemu-img
+    - genisoimage
+
+- name: Build effective SSH authorized keys list
+  ansible.builtin.set_fact:
+    kvm_runners_effective_ssh_authorized_keys: >-
+      {{
+        kvm_runners_ssh_authorized_keys
+        | map('trim')
+        | reject('equalto', '')
+        | unique
+        | list
+      }}
+
+- name: Ensure at least one SSH public key is configured for VM access
+  ansible.builtin.assert:
+    that:
+      - kvm_runners_effective_ssh_authorized_keys | length > 0
+    fail_msg: >-
+      No SSH public keys configured. Set kvm_runners_ssh_authorized_keys
+      or ensure {{ kvm_runners_default_ssh_public_key_path }} exists.
+
+- name: Check whether requested libvirt network exists
+  ansible.builtin.command: "virsh net-info {{ kvm_runners_network_name }}"
+  register: kvm_runners_network_info
+  changed_when: false
+  failed_when: false
+
+- name: Define default libvirt network when missing
+  ansible.builtin.command: virsh net-define /usr/share/libvirt/networks/default.xml
+  when:
+    - kvm_runners_network_info.rc != 0
+    - kvm_runners_network_name == "default"
+
+- name: Ensure non-default network exists
+  ansible.builtin.assert:
+    that:
+      - kvm_runners_network_info.rc == 0 or kvm_runners_network_name == "default"
+    fail_msg: "Network {{ kvm_runners_network_name }} does not exist on this host."
+
+- name: Enable libvirt network autostart
+  ansible.builtin.command: "virsh net-autostart {{ kvm_runners_network_name }}"
+  changed_when: false
+
+- name: Ensure libvirt network is active
+  ansible.builtin.command: "virsh net-start {{ kvm_runners_network_name }}"
+  register: kvm_runners_net_start
+  changed_when: kvm_runners_net_start.rc == 0
+  failed_when: >
+    kvm_runners_net_start.rc != 0 and
+    'already active' not in
+    (((kvm_runners_net_start.stdout | default('')) ~
+    (kvm_runners_net_start.stderr | default(''))) | lower)
+
+- name: Read libvirt network XML
+  ansible.builtin.command: "virsh net-dumpxml {{ kvm_runners_network_name }}"
+  register: kvm_runners_network_xml
+  changed_when: false
+
+- name: Ensure libvirt network forwards traffic via NAT
+  ansible.builtin.assert:
+    that:
+      - "'mode=\"nat\"' in kvm_runners_network_xml.stdout or \"mode='nat'\" in kvm_runners_network_xml.stdout"
+    fail_msg: "Network {{ kvm_runners_network_name }} is not configured for NAT forwarding."
+
+- name: Create VM image and cloud-init directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ kvm_runners_image_dir }}"
+    - "{{ kvm_runners_cloud_init_dir }}"
+
+- name: Download Ubuntu cloud image
+  ansible.builtin.get_url:
+    url: "{{ kvm_runners_cloud_image_url }}"
+    dest: "{{ kvm_runners_cloud_image_path }}"
+    mode: "0644"
+    force: false
+
+- name: Create VM qcow2 disks
+  ansible.builtin.command: >
+    qemu-img create -f qcow2 -F qcow2
+    -b {{ kvm_runners_cloud_image_path }}
+    {{ kvm_runners_image_dir }}/{{ item.name }}.qcow2
+    {{ item.disk_size_gb }}G
+  args:
+    creates: "{{ kvm_runners_image_dir }}/{{ item.name }}.qcow2"
+  loop: "{{ kvm_runners_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Create per-VM cloud-init staging directories
+  ansible.builtin.file:
+    path: "{{ kvm_runners_cloud_init_dir }}/{{ item.name }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ kvm_runners_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Render cloud-init user-data
+  ansible.builtin.template:
+    src: user-data.yaml.j2
+    dest: "{{ kvm_runners_cloud_init_dir }}/{{ item.name }}/user-data"
+    mode: "0644"
+  loop: "{{ kvm_runners_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Render cloud-init meta-data
+  ansible.builtin.template:
+    src: meta-data.yaml.j2
+    dest: "{{ kvm_runners_cloud_init_dir }}/{{ item.name }}/meta-data"
+    mode: "0644"
+  loop: "{{ kvm_runners_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Create cloud-init seed ISO images
+  ansible.builtin.command: >
+    genisoimage
+    -output {{ kvm_runners_cloud_init_dir }}/{{ item.name }}-seed.iso
+    -volid cidata
+    -joliet
+    -rock
+    {{ kvm_runners_cloud_init_dir }}/{{ item.name }}/user-data
+    {{ kvm_runners_cloud_init_dir }}/{{ item.name }}/meta-data
+  args:
+    creates: "{{ kvm_runners_cloud_init_dir }}/{{ item.name }}-seed.iso"
+  loop: "{{ kvm_runners_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Check whether VM domains already exist
+  ansible.builtin.command: "virsh dominfo {{ item.name }}"
+  register: kvm_runners_domains
+  changed_when: false
+  failed_when: false
+  loop: "{{ kvm_runners_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Create VM domains
+  ansible.builtin.command: >
+    virt-install
+    --name {{ item.item.name }}
+    --memory {{ item.item.memory_mb }}
+    --vcpus {{ item.item.vcpus }}
+    --import
+    --os-variant {{ kvm_runners_os_variant }}
+    --disk path={{ kvm_runners_image_dir }}/{{ item.item.name }}.qcow2,format=qcow2,bus=virtio
+    --disk path={{ kvm_runners_cloud_init_dir }}/{{ item.item.name }}-seed.iso,device=cdrom
+    --network network={{ kvm_runners_network_name }},model=virtio
+    --graphics none
+    --noautoconsole
+    --autostart
+  when: item.rc != 0
+  loop: "{{ kvm_runners_domains.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+
+- name: Ensure VM domains autostart
+  ansible.builtin.command: "virsh autostart {{ item.name }}"
+  changed_when: false
+  loop: "{{ kvm_runners_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Ensure VM domains are running
+  ansible.builtin.command: "virsh start {{ item.name }}"
+  register: kvm_runners_start_result
+  changed_when: kvm_runners_start_result.rc == 0
+  failed_when: >
+    kvm_runners_start_result.rc != 0 and
+    'already active' not in
+    (((kvm_runners_start_result.stdout | default('')) ~
+    (kvm_runners_start_result.stderr | default(''))) | lower)
+  loop: "{{ kvm_runners_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Wait for DHCP leases for each VM
+  ansible.builtin.command: "virsh domifaddr {{ item.name }} --source lease"
+  register: kvm_runners_vm_addresses
+  changed_when: false
+  retries: "{{ kvm_runners_lease_retries }}"
+  delay: "{{ kvm_runners_lease_delay_seconds }}"
+  until: kvm_runners_vm_addresses.rc == 0 and (kvm_runners_vm_addresses.stdout is search('ipv4'))
+  loop: "{{ kvm_runners_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Assert each VM has an IPv4 lease
+  ansible.builtin.assert:
+    that:
+      - (kvm_runners_vm_addresses.results | selectattr('stdout', 'search', 'ipv4') | list | length) == (kvm_runners_vms | length)
+    fail_msg: "One or more runner VMs failed to receive an IPv4 address."
+
+- name: Show VM network addresses
+  ansible.builtin.debug:
+    msg: "{{ item.stdout_lines }}"
+  loop: "{{ kvm_runners_vm_addresses.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
