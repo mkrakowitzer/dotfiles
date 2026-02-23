@@ -3,19 +3,28 @@ hostname: {{ item.name }}
 manage_etc_hosts: true
 package_update: true
 package_upgrade: true
+{% if kvm_runners_vm_packages | length > 0 %}
 packages:
-  - qemu-guest-agent
+{% for package_name in kvm_runners_vm_packages %}
+  - {{ package_name }}
+{% endfor %}
+{% endif %}
+{% if kvm_runners_vm_enable_qemu_guest_agent %}
 runcmd:
   - [systemctl, enable, --now, qemu-guest-agent]
+{% endif %}
 {% if kvm_runners_effective_ssh_authorized_keys | length > 0 %}
 users:
 {% if kvm_runners_vm_user != 'ubuntu' %}
   - default
 {% endif %}
   - name: {{ kvm_runners_vm_user }}
+{% if kvm_runners_vm_admin_groups | length > 0 %}
     groups:
-      - adm
-      - sudo
+{% for group_name in kvm_runners_vm_admin_groups %}
+      - {{ group_name }}
+{% endfor %}
+{% endif %}
     shell: /bin/bash
 {% if kvm_runners_vm_user_passwordless_sudo | default(true) %}
     sudo: ALL=(ALL) NOPASSWD:ALL

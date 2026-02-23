@@ -1,0 +1,53 @@
+---
+- name: Provision KVM UAT and staging virtual machines
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  become: true
+  vars:
+    kvm_bridge_name: "{{ lookup('ansible.builtin.env', 'KVM_BRIDGE_NAME') | default('', true) }}"
+    kvm_gateway_ipv4: "{{ lookup('ansible.builtin.env', 'KVM_GATEWAY_IPV4') | default('', true) }}"
+    kvm_dns_ipv4: "{{ lookup('ansible.builtin.env', 'KVM_DNS_IPV4') | default('', true) }}"
+    kvm_required_env_vars:
+      - KVM_BRIDGE_NAME
+      - KVM_GATEWAY_IPV4
+      - KVM_DNS_IPV4
+      - UAT_01_IP
+      - STAGING_01_IP
+    uat_vms:
+      - name: uat-01
+        vcpus: 2
+        memory_mb: 4096
+        disk_size_gb: 30
+        ipv4_address: "{{ lookup('ansible.builtin.env', 'UAT_01_IP') | default('', true) }}"
+      - name: staging-01
+        vcpus: 2
+        memory_mb: 4096
+        disk_size_gb: 30
+        ipv4_address: "{{ lookup('ansible.builtin.env', 'STAGING_01_IP') | default('', true) }}"
+
+  pre_tasks:
+    - name: Validate required network environment variables
+      ansible.builtin.import_tasks: tasks/validate_required_env_vars.yml
+
+  roles:
+    - role: kvm_runners
+      vars:
+        kvm_runners_image_dir: /var/lib/libvirt/images/uat
+        kvm_runners_cloud_init_dir: "{{ kvm_runners_image_dir }}/cloud-init"
+        kvm_runners_cloud_image_url: https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
+        kvm_runners_cloud_image_filename: noble-server-cloudimg-amd64.img
+        kvm_runners_vms: "{{ uat_vms }}"
+        kvm_runners_network_mode: bridge
+        kvm_runners_bridge_name: "{{ kvm_bridge_name }}"
+        kvm_runners_vm_ipv4_prefix: 24
+        kvm_runners_vm_ipv4_gateway: "{{ kvm_gateway_ipv4 }}"
+        kvm_runners_vm_ipv4_dns_servers:
+          - "{{ kvm_dns_ipv4 }}"
+        kvm_runners_vm_user: ubuntu
+        kvm_runners_vm_admin_groups:
+          - adm
+          - sudo
+        kvm_runners_vm_packages:
+          - qemu-guest-agent
+          - podman

@@ -1,0 +1,28 @@
+---
+- name: Build required environment variable value map
+  ansible.builtin.set_fact:
+    kvm_required_env_values: >-
+      {{
+        (kvm_required_env_values | default({}))
+        | combine({item: (lookup('ansible.builtin.env', item) | default('', true))})
+      }}
+  loop: "{{ kvm_required_env_vars }}"
+
+- name: Build list of missing required environment variables
+  ansible.builtin.set_fact:
+    kvm_missing_env_vars: >-
+      {{
+        kvm_required_env_values
+        | dict2items
+        | selectattr('value', 'equalto', '')
+        | map(attribute='key')
+        | list
+      }}
+
+- name: Validate required environment variables are set
+  ansible.builtin.assert:
+    that:
+      - kvm_missing_env_vars | length == 0
+    fail_msg: >-
+      Missing required environment variables: {{ kvm_missing_env_vars | join(', ') }}.
+      Set these values via GitHub Variables or local environment before running this playbook.

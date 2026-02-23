@@ -1,7 +1,10 @@
 ---
 kvm_runners_image_dir: /var/lib/libvirt/images/github-runners
 kvm_runners_cloud_init_dir: "{{ kvm_runners_image_dir }}/cloud-init"
+kvm_runners_network_mode: nat
 kvm_runners_network_name: default
+kvm_runners_bridge_name: ""
+kvm_runners_direct_interface: ""
 
 kvm_runners_cloud_image_url: https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
 kvm_runners_cloud_image_filename: noble-server-cloudimg-amd64.img
@@ -11,6 +14,11 @@ kvm_runners_os_variant: generic
 
 kvm_runners_lease_retries: 30
 kvm_runners_lease_delay_seconds: 10
+
+kvm_runners_vm_ipv4_prefix: 24
+kvm_runners_vm_ipv4_gateway: ""
+kvm_runners_vm_ipv4_dns_servers: []
+kvm_runners_vm_network_renderer: ""
 
 kvm_runners_vms:
   - name: runner-01
@@ -32,6 +40,12 @@ kvm_runners_vms:
 
 kvm_runners_vm_user: ubuntu
 kvm_runners_vm_user_passwordless_sudo: true
+kvm_runners_vm_admin_groups:
+  - adm
+  - sudo
+kvm_runners_vm_packages:
+  - qemu-guest-agent
+kvm_runners_vm_enable_qemu_guest_agent: true
 kvm_runners_default_ssh_public_key_path: "{{ lookup('env', 'HOME') + '/.ssh/id_ed25519.pub' }}"
 kvm_runners_ssh_authorized_keys:
   - "{{ lookup('file', kvm_runners_default_ssh_public_key_path, errors='warn') | trim }}"

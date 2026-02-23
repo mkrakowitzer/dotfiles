@@ -4,6 +4,32 @@
   connection: local
   gather_facts: true
   become: true
+  vars_files:
+    - vars/runner_vms.yml
+  vars:
+    kvm_bridge_name: "{{ lookup('ansible.builtin.env', 'KVM_BRIDGE_NAME') | default('', true) }}"
+    kvm_gateway_ipv4: "{{ lookup('ansible.builtin.env', 'KVM_GATEWAY_IPV4') | default('', true) }}"
+    kvm_dns_ipv4: "{{ lookup('ansible.builtin.env', 'KVM_DNS_IPV4') | default('', true) }}"
+    kvm_required_env_vars:
+      - KVM_BRIDGE_NAME
+      - KVM_GATEWAY_IPV4
+      - KVM_DNS_IPV4
+      - RUNNER_01_IP
+      - RUNNER_02_IP
+      - RUNNER_03_IP
+      - RUNNER_04_IP
+
+  pre_tasks:
+    - name: Validate required network environment variables
+      ansible.builtin.import_tasks: tasks/validate_required_env_vars.yml
 
   roles:
     - role: kvm_runners
+      vars:
+        kvm_runners_vms: "{{ runner_vms }}"
+        kvm_runners_network_mode: bridge
+        kvm_runners_bridge_name: "{{ kvm_bridge_name }}"
+        kvm_runners_vm_ipv4_prefix: 24
+        kvm_runners_vm_ipv4_gateway: "{{ kvm_gateway_ipv4 }}"
+        kvm_runners_vm_ipv4_dns_servers:
+          - "{{ kvm_dns_ipv4 }}"

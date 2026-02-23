@@ -1,0 +1,22 @@
+---
+runner_vms:
+  - name: runner-01
+    vcpus: 2
+    memory_mb: 4096
+    disk_size_gb: 30
+    ipv4_address: "{{ lookup('ansible.builtin.env', 'RUNNER_01_IP') | default('', true) }}"
+  - name: runner-02
+    vcpus: 2
+    memory_mb: 4096
+    disk_size_gb: 30
+    ipv4_address: "{{ lookup('ansible.builtin.env', 'RUNNER_02_IP') | default('', true) }}"
+  - name: runner-03
+    vcpus: 2
+    memory_mb: 4096
+    disk_size_gb: 30
+    ipv4_address: "{{ lookup('ansible.builtin.env', 'RUNNER_03_IP') | default('', true) }}"
+  - name: runner-04
+    vcpus: 2
+    memory_mb: 4096
+    disk_size_gb: 30
+    ipv4_address: "{{ lookup('ansible.builtin.env', 'RUNNER_04_IP') | default('', true) }}"
