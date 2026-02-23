@@ -3,6 +3,8 @@
   hosts: localhost
   connection: local
   gather_facts: true
+  vars_files:
+    - vars/runner_vms.yml
   vars:
     ansible_python_interpreter: >-
       {{
@@ -13,15 +15,6 @@
     github_runner_repo: "mkrakowitzer/Saas"
     github_runner_trust_host_keys_from_keyscan: true
     github_runner_pinned_host_keys: {}
-    github_runner_vms:
-      - name: runner-01
-        ip: "{{ lookup('ansible.builtin.env', 'RUNNER_01_IP') | default('', true) }}"
-      - name: runner-02
-        ip: "{{ lookup('ansible.builtin.env', 'RUNNER_02_IP') | default('', true) }}"
-      - name: runner-03
-        ip: "{{ lookup('ansible.builtin.env', 'RUNNER_03_IP') | default('', true) }}"
-      - name: runner-04
-        ip: "{{ lookup('ansible.builtin.env', 'RUNNER_04_IP') | default('', true) }}"
     github_runner_ssh_user: ubuntu
     github_runner_ssh_private_key_file: "{{ ansible_facts['env']['HOME'] }}/.ssh/id_ed25519"
     github_runner_ssh_public_key_file: "{{ github_runner_ssh_private_key_file }}.pub"
@@ -63,23 +56,17 @@
 
     - name: Build discovered VM host list from configured static addresses
       ansible.builtin.set_fact:
-        github_runner_discovered_hosts: "{{ github_runner_vms }}"
-
-    - name: Assert runner host list has non-empty static IP values
-      ansible.builtin.assert:
-        that:
-          - (github_runner_discovered_hosts | map(attribute='ip') | reject('equalto', '') | list | length) == (github_runner_vms | length)
-        fail_msg: >-
-          Missing runner IP environment variables. Set RUNNER_01_IP, RUNNER_02_IP,
-          RUNNER_03_IP, and RUNNER_04_IP (for example via GitHub Variables).
+        github_runner_discovered_hosts: "{{ runner_vms }}"
 
     - name: Assert discovered runner VM count matches expected count
       ansible.builtin.assert:
         that:
-          - (github_runner_discovered_hosts | length) == (github_runner_vms | length)
-          - (github_runner_discovered_hosts | map(attribute='ip') | reject('equalto', None) | list | length) == (github_runner_vms | length)
-          - (github_runner_discovered_hosts | map(attribute='ip') | list | unique | length) == (github_runner_vms | length)
-        fail_msg: "Runner VM list is missing one or more static IPv4 addresses."
+          - (github_runner_discovered_hosts | length) == (runner_vms | length)
+          - (github_runner_discovered_hosts | map(attribute='ipv4_address') | reject('equalto', '') | list | length) == (runner_vms | length)
+          - (github_runner_discovered_hosts | map(attribute='ipv4_address') | list | unique | length) == (runner_vms | length)
+        fail_msg: >-
+          Missing or duplicate runner IP environment variables.
+          Set RUNNER_01_IP, RUNNER_02_IP, RUNNER_03_IP, and RUNNER_04_IP.
 
     - name: Ensure known_hosts directory exists
       ansible.builtin.file:
@@ -91,21 +78,19 @@
       ansible.builtin.set_fact:
         github_runner_pinned_host_entries: >-
           {{
-            (github_runner_pinned_host_entries | default([]))
-            +
-            [{
-              'name': item.name,
-              'ip': item.ip,
-              'key': (
-                github_runner_pinned_host_keys.get(item.name)
-                or github_runner_pinned_host_keys.get(item.ip)
-                or ''
-              )
-            }]
+            [
+              {
+                'name': host.name,
+                'ip': host.ipv4_address,
+                'key': (
+                  github_runner_pinned_host_keys.get(host.name)
+                  or github_runner_pinned_host_keys.get(host.ipv4_address)
+                  or ''
+                )
+              }
+              for host in github_runner_discovered_hosts
+            ]
           }}
-      loop: "{{ github_runner_discovered_hosts }}"
-      loop_control:
-        label: "{{ item.name }}"
 
     - name: Build list of hosts that require keyscan
       ansible.builtin.set_fact:
@@ -183,7 +168,7 @@
       ansible.builtin.add_host:
         name: "{{ item.name }}"
         groups: github_runner_targets
-        ansible_host: "{{ item.ip }}"
+        ansible_host: "{{ item.ipv4_address }}"
         ansible_user: "{{ github_runner_ssh_user }}"
         ansible_ssh_private_key_file: "{{ github_runner_ssh_private_key_file }}"
       loop: "{{ github_runner_discovered_hosts }}"

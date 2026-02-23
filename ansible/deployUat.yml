@@ -8,6 +8,12 @@
     kvm_bridge_name: "{{ lookup('ansible.builtin.env', 'KVM_BRIDGE_NAME') | default('', true) }}"
     kvm_gateway_ipv4: "{{ lookup('ansible.builtin.env', 'KVM_GATEWAY_IPV4') | default('', true) }}"
     kvm_dns_ipv4: "{{ lookup('ansible.builtin.env', 'KVM_DNS_IPV4') | default('', true) }}"
+    kvm_required_env_vars:
+      - KVM_BRIDGE_NAME
+      - KVM_GATEWAY_IPV4
+      - KVM_DNS_IPV4
+      - UAT_01_IP
+      - STAGING_01_IP
     uat_vms:
       - name: uat-01
         vcpus: 2
@@ -21,16 +27,8 @@
         ipv4_address: "{{ lookup('ansible.builtin.env', 'STAGING_01_IP') | default('', true) }}"
 
   pre_tasks:
-    - name: Validate required network environment variables are set
-      ansible.builtin.assert:
-        that:
-          - kvm_bridge_name | length > 0
-          - kvm_gateway_ipv4 | length > 0
-          - kvm_dns_ipv4 | length > 0
-          - (uat_vms | map(attribute='ipv4_address') | reject('equalto', '') | list | length) == (uat_vms | length)
-        fail_msg: >-
-          Missing required environment variables. Set KVM_BRIDGE_NAME, KVM_GATEWAY_IPV4,
-          KVM_DNS_IPV4, UAT_01_IP, and STAGING_01_IP (for example via GitHub Variables).
+    - name: Validate required network environment variables
+      ansible.builtin.import_tasks: tasks/validate_required_env_vars.yml
 
   roles:
     - role: kvm_runners
