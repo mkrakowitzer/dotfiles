@@ -1,0 +1,24 @@
+version: 2
+{% if kvm_runners_vm_network_renderer | trim | length > 0 %}
+renderer: {{ kvm_runners_vm_network_renderer }}
+{% endif %}
+ethernets:
+  primary:
+    match:
+      name: "e*"
+{% if item.ipv4_address is defined %}
+    dhcp4: false
+    dhcp6: false
+    addresses:
+      - {{ item.ipv4_address }}/{{ kvm_runners_vm_ipv4_prefix }}
+    routes:
+      - to: default
+        via: {{ kvm_runners_vm_ipv4_gateway }}
+    nameservers:
+      addresses:
+{% for dns_server in kvm_runners_vm_ipv4_dns_servers %}
+        - {{ dns_server }}
+{% endfor %}
+{% else %}
+    dhcp4: true
+{% endif %}

@@ -1,5 +1,5 @@
 ---
-- name: Provision KVM runner virtual machines
+- name: Provision KVM UAT and staging virtual machines
   hosts: localhost
   connection: local
   gather_facts: true
@@ -8,27 +8,17 @@
     kvm_bridge_name: "{{ lookup('ansible.builtin.env', 'KVM_BRIDGE_NAME') | default('', true) }}"
     kvm_gateway_ipv4: "{{ lookup('ansible.builtin.env', 'KVM_GATEWAY_IPV4') | default('', true) }}"
     kvm_dns_ipv4: "{{ lookup('ansible.builtin.env', 'KVM_DNS_IPV4') | default('', true) }}"
-    runner_vms:
-      - name: runner-01
+    uat_vms:
+      - name: uat-01
         vcpus: 2
         memory_mb: 4096
         disk_size_gb: 30
-        ipv4_address: "{{ lookup('ansible.builtin.env', 'RUNNER_01_IP') | default('', true) }}"
-      - name: runner-02
+        ipv4_address: "{{ lookup('ansible.builtin.env', 'UAT_01_IP') | default('', true) }}"
+      - name: staging-01
         vcpus: 2
         memory_mb: 4096
         disk_size_gb: 30
-        ipv4_address: "{{ lookup('ansible.builtin.env', 'RUNNER_02_IP') | default('', true) }}"
-      - name: runner-03
-        vcpus: 2
-        memory_mb: 4096
-        disk_size_gb: 30
-        ipv4_address: "{{ lookup('ansible.builtin.env', 'RUNNER_03_IP') | default('', true) }}"
-      - name: runner-04
-        vcpus: 2
-        memory_mb: 4096
-        disk_size_gb: 30
-        ipv4_address: "{{ lookup('ansible.builtin.env', 'RUNNER_04_IP') | default('', true) }}"
+        ipv4_address: "{{ lookup('ansible.builtin.env', 'STAGING_01_IP') | default('', true) }}"
 
   pre_tasks:
     - name: Validate required network environment variables are set
@@ -37,18 +27,29 @@
           - kvm_bridge_name | length > 0
           - kvm_gateway_ipv4 | length > 0
           - kvm_dns_ipv4 | length > 0
-          - (runner_vms | map(attribute='ipv4_address') | reject('equalto', '') | list | length) == (runner_vms | length)
+          - (uat_vms | map(attribute='ipv4_address') | reject('equalto', '') | list | length) == (uat_vms | length)
         fail_msg: >-
           Missing required environment variables. Set KVM_BRIDGE_NAME, KVM_GATEWAY_IPV4,
-          KVM_DNS_IPV4, and RUNNER_01_IP..RUNNER_04_IP (for example via GitHub Variables).
+          KVM_DNS_IPV4, UAT_01_IP, and STAGING_01_IP (for example via GitHub Variables).
 
   roles:
     - role: kvm_runners
       vars:
-        kvm_runners_vms: "{{ runner_vms }}"
+        kvm_runners_image_dir: /var/lib/libvirt/images/uat
+        kvm_runners_cloud_init_dir: "{{ kvm_runners_image_dir }}/cloud-init"
+        kvm_runners_cloud_image_url: https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
+        kvm_runners_cloud_image_filename: noble-server-cloudimg-amd64.img
+        kvm_runners_vms: "{{ uat_vms }}"
         kvm_runners_network_mode: bridge
         kvm_runners_bridge_name: "{{ kvm_bridge_name }}"
         kvm_runners_vm_ipv4_prefix: 24
         kvm_runners_vm_ipv4_gateway: "{{ kvm_gateway_ipv4 }}"
         kvm_runners_vm_ipv4_dns_servers:
           - "{{ kvm_dns_ipv4 }}"
+        kvm_runners_vm_user: ubuntu
+        kvm_runners_vm_admin_groups:
+          - adm
+          - sudo
+        kvm_runners_vm_packages:
+          - qemu-guest-agent
+          - podman

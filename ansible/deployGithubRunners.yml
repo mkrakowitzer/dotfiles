@@ -13,13 +13,18 @@
     github_runner_repo: "mkrakowitzer/Saas"
     github_runner_trust_host_keys_from_keyscan: true
     github_runner_pinned_host_keys: {}
-    github_runner_vm_names:
-      - runner-01
-      - runner-02
-      - runner-03
-      - runner-04
+    github_runner_vms:
+      - name: runner-01
+        ip: "{{ lookup('ansible.builtin.env', 'RUNNER_01_IP') | default('', true) }}"
+      - name: runner-02
+        ip: "{{ lookup('ansible.builtin.env', 'RUNNER_02_IP') | default('', true) }}"
+      - name: runner-03
+        ip: "{{ lookup('ansible.builtin.env', 'RUNNER_03_IP') | default('', true) }}"
+      - name: runner-04
+        ip: "{{ lookup('ansible.builtin.env', 'RUNNER_04_IP') | default('', true) }}"
     github_runner_ssh_user: ubuntu
     github_runner_ssh_private_key_file: "{{ ansible_facts['env']['HOME'] }}/.ssh/id_ed25519"
+    github_runner_ssh_public_key_file: "{{ github_runner_ssh_private_key_file }}.pub"
     github_runner_known_hosts_path: "{{ ansible_facts['env']['HOME'] }}/.ssh/known_hosts"
     github_runner_api_token: "{{ lookup('ansible.builtin.env', 'GITHUB_RUNNER_ADMIN_TOKEN') | default('', true) }}"
 
@@ -35,47 +40,46 @@
           - github_runner_ssh_key_file.stat.exists
         fail_msg: "Runner SSH key not found: {{ github_runner_ssh_private_key_file }}"
 
-    - name: Resolve VM IPv4 addresses from libvirt leases
-      ansible.builtin.command: "virsh domifaddr {{ item }} --source lease"
-      become: true
-      register: github_runner_vm_ip_lookup
-      changed_when: false
-      retries: 12
-      delay: 5
-      until: github_runner_vm_ip_lookup.rc == 0 and (github_runner_vm_ip_lookup.stdout is search('ipv4'))
-      loop: "{{ github_runner_vm_names }}"
-      loop_control:
-        label: "{{ item }}"
+    - name: Ensure runner SSH public key exists
+      ansible.builtin.stat:
+        path: "{{ github_runner_ssh_public_key_file }}"
+      register: github_runner_ssh_public_key_file_stat
 
-    - name: Build discovered VM host list
+    - name: Fail when runner SSH public key is missing
+      ansible.builtin.assert:
+        that:
+          - github_runner_ssh_public_key_file_stat.stat.exists
+        fail_msg: "Runner SSH public key not found: {{ github_runner_ssh_public_key_file }}"
+
+    - name: Read runner SSH public key content
       ansible.builtin.set_fact:
-        github_runner_discovered_hosts: >-
-          {{
-            (github_runner_discovered_hosts | default([]))
-            +
-            [{
-              'name': item.item,
-              'ip': (
-                item.stdout_lines
-                | select('search', 'ipv4')
-                | first
-                | split
-                | last
-                | split('/')
-                | first
-              )
-            }]
-          }}
-      loop: "{{ github_runner_vm_ip_lookup.results }}"
-      loop_control:
-        label: "{{ item.item }}"
+        github_runner_ssh_public_key: "{{ lookup('ansible.builtin.file', github_runner_ssh_public_key_file) | trim }}"
+
+    - name: Ensure runner SSH public key content is not empty
+      ansible.builtin.assert:
+        that:
+          - github_runner_ssh_public_key | length > 0
+        fail_msg: "Runner SSH public key is empty: {{ github_runner_ssh_public_key_file }}"
+
+    - name: Build discovered VM host list from configured static addresses
+      ansible.builtin.set_fact:
+        github_runner_discovered_hosts: "{{ github_runner_vms }}"
+
+    - name: Assert runner host list has non-empty static IP values
+      ansible.builtin.assert:
+        that:
+          - (github_runner_discovered_hosts | map(attribute='ip') | reject('equalto', '') | list | length) == (github_runner_vms | length)
+        fail_msg: >-
+          Missing runner IP environment variables. Set RUNNER_01_IP, RUNNER_02_IP,
+          RUNNER_03_IP, and RUNNER_04_IP (for example via GitHub Variables).
 
     - name: Assert discovered runner VM count matches expected count
       ansible.builtin.assert:
         that:
-          - (github_runner_discovered_hosts | length) == (github_runner_vm_names | length)
-          - (github_runner_discovered_hosts | map(attribute='ip') | reject('equalto', None) | list | length) == (github_runner_vm_names | length)
-        fail_msg: "Failed to discover one or more runner VM IP addresses."
+          - (github_runner_discovered_hosts | length) == (github_runner_vms | length)
+          - (github_runner_discovered_hosts | map(attribute='ip') | reject('equalto', None) | list | length) == (github_runner_vms | length)
+          - (github_runner_discovered_hosts | map(attribute='ip') | list | unique | length) == (github_runner_vms | length)
+        fail_msg: "Runner VM list is missing one or more static IPv4 addresses."
 
     - name: Ensure known_hosts directory exists
       ansible.builtin.file:
@@ -147,6 +151,11 @@
       ansible.builtin.command: "ssh-keyscan -T 5 -t ed25519 {{ item.ip }}"
       register: github_runner_keyscan_results
       changed_when: false
+      retries: 6
+      delay: 5
+      until: >
+        github_runner_keyscan_results.rc == 0 and
+        (github_runner_keyscan_results.stdout_lines | reject('match', '^#') | list | length) > 0
       failed_when: >
         (github_runner_keyscan_results.stdout_lines | reject('match', '^#') | list | length) == 0
       when:
@@ -237,5 +246,24 @@
     github_runner_repo: "{{ hostvars['localhost']['github_runner_repo'] | default('mkrakowitzer/Saas') }}"
     github_runner_url: "https://github.com/{{ github_runner_repo }}"
     github_runner_registration_token: "{{ hostvars['localhost']['github_runner_registration_token'] }}"
+    github_runner_ssh_user: "{{ hostvars['localhost']['github_runner_ssh_user'] | default('ubuntu') }}"
+  pre_tasks:
+    - name: Ensure SSH directory exists for runner SSH user
+      ansible.builtin.file:
+        path: "/home/{{ github_runner_ssh_user }}/.ssh"
+        state: directory
+        owner: "{{ github_runner_ssh_user }}"
+        group: "{{ github_runner_ssh_user }}"
+        mode: "0700"
+
+    - name: Ensure host SSH public key is authorized for runner SSH user
+      ansible.builtin.lineinfile:
+        path: "/home/{{ github_runner_ssh_user }}/.ssh/authorized_keys"
+        line: "{{ hostvars['localhost']['github_runner_ssh_public_key'] }}"
+        create: true
+        owner: "{{ github_runner_ssh_user }}"
+        group: "{{ github_runner_ssh_user }}"
+        mode: "0600"
+        state: present
   roles:
     - role: github_runner

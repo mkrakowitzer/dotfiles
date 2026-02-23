@@ -5,6 +5,26 @@
       - ansible_facts.os_family in ["Debian", "RedHat"]
     fail_msg: "kvm_runners supports Debian and RedHat only. Found {{ ansible_facts.os_family }}."
 
+- name: Validate network mode
+  ansible.builtin.assert:
+    that:
+      - kvm_runners_network_mode in ["nat", "bridge", "direct"]
+    fail_msg: "kvm_runners_network_mode must be one of: nat, bridge, direct."
+
+- name: Validate bridge name is provided when bridge mode is enabled
+  ansible.builtin.assert:
+    that:
+      - kvm_runners_bridge_name | trim | length > 0
+    fail_msg: "kvm_runners_bridge_name must be set when kvm_runners_network_mode is 'bridge'."
+  when: kvm_runners_network_mode == "bridge"
+
+- name: Validate direct interface is provided when direct mode is enabled
+  ansible.builtin.assert:
+    that:
+      - kvm_runners_direct_interface | trim | length > 0
+    fail_msg: "kvm_runners_direct_interface must be set when kvm_runners_network_mode is 'direct'."
+  when: kvm_runners_network_mode == "direct"
+
 - name: Validate VM list is provided
   ansible.builtin.assert:
     that:
@@ -22,10 +42,29 @@
       - (item.vcpus | int) > 0
       - (item.memory_mb | int) > 0
       - (item.disk_size_gb | int) > 0
+      - item.ipv4_address is not defined or (item.ipv4_address | trim | length > 0)
+      - item.ipv4_address is not defined or ((item.ipv4_address | string) is match('^((25[0-5]|2[0-4][0-9]|[0-1]?[0-9]?[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|[0-1]?[0-9]?[0-9])$'))
     fail_msg: "Invalid VM definition: {{ item | to_nice_json }}"
   loop: "{{ kvm_runners_vms }}"
   loop_control:
     label: "{{ item.name | default('unnamed-vm') }}"
+
+- name: Validate static IPv4 addresses are unique
+  ansible.builtin.assert:
+    that:
+      - (kvm_runners_vms | selectattr('ipv4_address', 'defined') | map(attribute='ipv4_address') | list | length) == (kvm_runners_vms | selectattr('ipv4_address', 'defined') | map(attribute='ipv4_address') | list | unique | length)
+    fail_msg: "Duplicate ipv4_address values found in kvm_runners_vms."
+
+- name: Validate static networking defaults when ipv4_address is set
+  ansible.builtin.assert:
+    that:
+      - (kvm_runners_vms | selectattr('ipv4_address', 'defined') | list | length) == 0 or (kvm_runners_vm_ipv4_gateway | trim | length > 0)
+      - (kvm_runners_vms | selectattr('ipv4_address', 'defined') | list | length) == 0 or (kvm_runners_vm_ipv4_dns_servers | length > 0)
+      - (kvm_runners_vm_ipv4_prefix | int) > 0
+      - (kvm_runners_vm_ipv4_prefix | int) <= 32
+    fail_msg: >-
+      Set kvm_runners_vm_ipv4_gateway, kvm_runners_vm_ipv4_dns_servers, and a valid
+      kvm_runners_vm_ipv4_prefix when using per-VM ipv4_address values.
 
 - name: Install KVM dependencies on Debian hosts
   ansible.builtin.apt:
@@ -76,95 +115,120 @@
       No SSH public keys configured. Set kvm_runners_ssh_authorized_keys
       or ensure {{ kvm_runners_default_ssh_public_key_path }} exists.
 
-- name: Check whether requested libvirt network exists
-  ansible.builtin.command: "virsh net-info {{ kvm_runners_network_name }}"
-  register: kvm_runners_network_info
+- name: Configure libvirt NAT network
+  when: kvm_runners_network_mode == "nat"
+  block:
+    - name: Check whether requested libvirt network exists
+      ansible.builtin.command: "virsh net-info {{ kvm_runners_network_name }}"
+      register: kvm_runners_network_info
+      changed_when: false
+      failed_when: false
+
+    - name: Check for default libvirt network XML in /usr/share
+      ansible.builtin.stat:
+        path: /usr/share/libvirt/networks/default.xml
+      register: kvm_runners_default_net_xml_usr_share
+      when:
+        - kvm_runners_network_info.rc != 0
+        - kvm_runners_network_name == "default"
+
+    - name: Check for default libvirt network XML in /etc/libvirt/qemu
+      ansible.builtin.stat:
+        path: /etc/libvirt/qemu/networks/default.xml
+      register: kvm_runners_default_net_xml_etc
+      when:
+        - kvm_runners_network_info.rc != 0
+        - kvm_runners_network_name == "default"
+
+    - name: Set default libvirt network XML path when found
+      ansible.builtin.set_fact:
+        kvm_runners_default_net_xml_path: >-
+          {{
+            '/usr/share/libvirt/networks/default.xml'
+            if (kvm_runners_default_net_xml_usr_share.stat.exists | default(false))
+            else '/etc/libvirt/qemu/networks/default.xml'
+          }}
+      when:
+        - kvm_runners_network_info.rc != 0
+        - kvm_runners_network_name == "default"
+        - (kvm_runners_default_net_xml_usr_share.stat.exists | default(false)) or
+          (kvm_runners_default_net_xml_etc.stat.exists | default(false))
+
+    - name: Fail when default libvirt network XML is not found
+      ansible.builtin.fail:
+        msg: >-
+          Default libvirt network XML not found in known locations:
+          /usr/share/libvirt/networks/default.xml,
+          /etc/libvirt/qemu/networks/default.xml.
+      when:
+        - kvm_runners_network_info.rc != 0
+        - kvm_runners_network_name == "default"
+        - not (kvm_runners_default_net_xml_usr_share.stat.exists | default(false))
+        - not (kvm_runners_default_net_xml_etc.stat.exists | default(false))
+
+    - name: Define default libvirt network when missing
+      ansible.builtin.command: "virsh net-define {{ kvm_runners_default_net_xml_path }}"
+      when:
+        - kvm_runners_network_info.rc != 0
+        - kvm_runners_network_name == "default"
+        - kvm_runners_default_net_xml_path is defined
+
+    - name: Ensure non-default network exists
+      ansible.builtin.assert:
+        that:
+          - kvm_runners_network_info.rc == 0 or kvm_runners_network_name == "default"
+        fail_msg: "Network {{ kvm_runners_network_name }} does not exist on this host."
+
+    - name: Enable libvirt network autostart
+      ansible.builtin.command: "virsh net-autostart {{ kvm_runners_network_name }}"
+      register: kvm_runners_net_autostart
+      changed_when: >
+        kvm_runners_net_autostart.rc == 0 and
+        'already' not in
+        (((kvm_runners_net_autostart.stdout | default('')) ~
+        (kvm_runners_net_autostart.stderr | default(''))) | lower)
+
+    - name: Ensure libvirt network is active
+      ansible.builtin.command: "virsh net-start {{ kvm_runners_network_name }}"
+      register: kvm_runners_net_start
+      changed_when: kvm_runners_net_start.rc == 0
+      failed_when: >
+        kvm_runners_net_start.rc != 0 and
+        'already active' not in (kvm_runners_net_start.stdout | default('') | lower) and
+        'already active' not in (kvm_runners_net_start.stderr | default('') | lower)
+
+    - name: Read libvirt network XML
+      ansible.builtin.command: "virsh net-dumpxml {{ kvm_runners_network_name }}"
+      register: kvm_runners_network_xml
+      changed_when: false
+
+    - name: Ensure libvirt network forwards traffic via NAT
+      ansible.builtin.assert:
+        that:
+          - "((kvm_runners_network_xml.stdout | default('')) | regex_search(\"mode\\s*=\\s*['\\\"]nat['\\\"]\")) is not none"
+        fail_msg: "Network {{ kvm_runners_network_name }} is not configured for NAT forwarding."
+
+- name: Ensure requested bridge interface exists
+  ansible.builtin.command: "ip link show {{ kvm_runners_bridge_name }}"
   changed_when: false
-  failed_when: false
+  when: kvm_runners_network_mode == "bridge"
 
-- name: Check for default libvirt network XML in /usr/share
-  ansible.builtin.stat:
-    path: /usr/share/libvirt/networks/default.xml
-  register: kvm_runners_default_net_xml_usr_share
-  when:
-    - kvm_runners_network_info.rc != 0
-    - kvm_runners_network_name == "default"
+- name: Ensure requested direct interface exists
+  ansible.builtin.command: "ip link show {{ kvm_runners_direct_interface }}"
+  changed_when: false
+  when: kvm_runners_network_mode == "direct"
 
-- name: Check for default libvirt network XML in /etc/libvirt/qemu
-  ansible.builtin.stat:
-    path: /etc/libvirt/qemu/networks/default.xml
-  register: kvm_runners_default_net_xml_etc
-  when:
-    - kvm_runners_network_info.rc != 0
-    - kvm_runners_network_name == "default"
-
-- name: Set default libvirt network XML path when found
+- name: Build virt-install network argument
   ansible.builtin.set_fact:
-    kvm_runners_default_net_xml_path: >-
+    kvm_runners_virt_install_network_arg: >-
       {{
-        '/usr/share/libvirt/networks/default.xml'
-        if (kvm_runners_default_net_xml_usr_share.stat.exists | default(false))
-        else '/etc/libvirt/qemu/networks/default.xml'
+        ('network=' ~ kvm_runners_network_name)
+        if kvm_runners_network_mode == 'nat'
+        else
+        (('bridge=' ~ kvm_runners_bridge_name)
+        if kvm_runners_network_mode == 'bridge'
+        else ('type=direct,source=' ~ kvm_runners_direct_interface ~ ',source_mode=bridge'))
       }}
-  when:
-    - kvm_runners_network_info.rc != 0
-    - kvm_runners_network_name == "default"
-    - (kvm_runners_default_net_xml_usr_share.stat.exists | default(false)) or
-      (kvm_runners_default_net_xml_etc.stat.exists | default(false))
-
-- name: Fail when default libvirt network XML is not found
-  ansible.builtin.fail:
-    msg: >-
-      Default libvirt network XML not found in known locations:
-      /usr/share/libvirt/networks/default.xml,
-      /etc/libvirt/qemu/networks/default.xml.
-  when:
-    - kvm_runners_network_info.rc != 0
-    - kvm_runners_network_name == "default"
-    - not (kvm_runners_default_net_xml_usr_share.stat.exists | default(false))
-    - not (kvm_runners_default_net_xml_etc.stat.exists | default(false))
-
-- name: Define default libvirt network when missing
-  ansible.builtin.command: "virsh net-define {{ kvm_runners_default_net_xml_path }}"
-  when:
-    - kvm_runners_network_info.rc != 0
-    - kvm_runners_network_name == "default"
-    - kvm_runners_default_net_xml_path is defined
-
-- name: Ensure non-default network exists
-  ansible.builtin.assert:
-    that:
-      - kvm_runners_network_info.rc == 0 or kvm_runners_network_name == "default"
-    fail_msg: "Network {{ kvm_runners_network_name }} does not exist on this host."
-
-- name: Enable libvirt network autostart
-  ansible.builtin.command: "virsh net-autostart {{ kvm_runners_network_name }}"
-  register: kvm_runners_net_autostart
-  changed_when: >
-    kvm_runners_net_autostart.rc == 0 and
-    'already' not in
-    (((kvm_runners_net_autostart.stdout | default('')) ~
-    (kvm_runners_net_autostart.stderr | default(''))) | lower)
-
-- name: Ensure libvirt network is active
-  ansible.builtin.command: "virsh net-start {{ kvm_runners_network_name }}"
-  register: kvm_runners_net_start
-  changed_when: kvm_runners_net_start.rc == 0
-  failed_when: >
-    kvm_runners_net_start.rc != 0 and
-    'already active' not in (kvm_runners_net_start.stdout | default('') | lower) and
-    'already active' not in (kvm_runners_net_start.stderr | default('') | lower)
-
-- name: Read libvirt network XML
-  ansible.builtin.command: "virsh net-dumpxml {{ kvm_runners_network_name }}"
-  register: kvm_runners_network_xml
-  changed_when: false
-
-- name: Ensure libvirt network forwards traffic via NAT
-  ansible.builtin.assert:
-    that:
-      - "((kvm_runners_network_xml.stdout | default('')) | regex_search(\"mode\\s*=\\s*['\\\"]nat['\\\"]\")) is not none"
-    fail_msg: "Network {{ kvm_runners_network_name }} is not configured for NAT forwarding."
 
 - name: Create VM image and cloud-init directories
   ansible.builtin.file:
@@ -175,12 +239,18 @@
     - "{{ kvm_runners_image_dir }}"
     - "{{ kvm_runners_cloud_init_dir }}"
 
-- name: Download Ubuntu cloud image
+- name: Check whether cloud image already exists locally
+  ansible.builtin.stat:
+    path: "{{ kvm_runners_cloud_image_path }}"
+  register: kvm_runners_cloud_image_stat
+
+- name: Download cloud image
   ansible.builtin.get_url:
     url: "{{ kvm_runners_cloud_image_url }}"
     dest: "{{ kvm_runners_cloud_image_path }}"
     mode: "0644"
     force: false
+  when: not kvm_runners_cloud_image_stat.stat.exists
 
 - name: Create VM qcow2 disks
   ansible.builtin.command: >
@@ -221,6 +291,15 @@
   loop_control:
     label: "{{ item.name }}"
 
+- name: Render cloud-init network-config
+  ansible.builtin.template:
+    src: network-config.yaml.j2
+    dest: "{{ kvm_runners_cloud_init_dir }}/{{ item.name }}/network-config"
+    mode: "0644"
+  loop: "{{ kvm_runners_vms }}"
+  loop_control:
+    label: "{{ item.name }}"
+
 - name: Create cloud-init seed ISO images
   ansible.builtin.command: >
     genisoimage
@@ -230,6 +309,7 @@
     -rock
     {{ kvm_runners_cloud_init_dir }}/{{ item.name }}/user-data
     {{ kvm_runners_cloud_init_dir }}/{{ item.name }}/meta-data
+    {{ kvm_runners_cloud_init_dir }}/{{ item.name }}/network-config
   args:
     creates: "{{ kvm_runners_cloud_init_dir }}/{{ item.name }}-seed.iso"
   loop: "{{ kvm_runners_vms }}"
@@ -255,7 +335,7 @@
     --os-variant {{ kvm_runners_os_variant }}
     --disk path={{ kvm_runners_image_dir }}/{{ item.item.name }}.qcow2,format=qcow2,bus=virtio
     --disk path={{ kvm_runners_cloud_init_dir }}/{{ item.item.name }}-seed.iso,device=cdrom
-    --network network={{ kvm_runners_network_name }},model=virtio
+    --network {{ kvm_runners_virt_install_network_arg }},model=virtio
     --graphics none
     --noautoconsole
     --autostart
@@ -289,26 +369,42 @@
   loop_control:
     label: "{{ item.name }}"
 
-- name: Wait for DHCP leases for each VM
+- name: Build VM lists for DHCP and static addressing
+  ansible.builtin.set_fact:
+    kvm_runners_vms_with_dhcp: "{{ kvm_runners_vms | rejectattr('ipv4_address', 'defined') | list }}"
+    kvm_runners_vms_with_static_ip: "{{ kvm_runners_vms | selectattr('ipv4_address', 'defined') | list }}"
+
+- name: Wait for DHCP leases for DHCP-configured VMs
   ansible.builtin.command: "virsh domifaddr {{ item.name }} --source lease"
   register: kvm_runners_vm_addresses
   changed_when: false
   retries: "{{ kvm_runners_lease_retries }}"
   delay: "{{ kvm_runners_lease_delay_seconds }}"
   until: kvm_runners_vm_addresses.rc == 0 and (kvm_runners_vm_addresses.stdout is search('ipv4'))
-  loop: "{{ kvm_runners_vms }}"
+  loop: "{{ kvm_runners_vms_with_dhcp }}"
+  when: kvm_runners_vms_with_dhcp | length > 0
   loop_control:
     label: "{{ item.name }}"
 
-- name: Assert each VM has an IPv4 lease
+- name: Assert each DHCP-configured VM has an IPv4 lease
   ansible.builtin.assert:
     that:
-      - (kvm_runners_vm_addresses.results | selectattr('stdout', 'search', 'ipv4') | list | length) == (kvm_runners_vms | length)
-    fail_msg: "One or more runner VMs failed to receive an IPv4 address."
+      - (kvm_runners_vm_addresses.results | selectattr('stdout', 'search', 'ipv4') | list | length) == (kvm_runners_vms_with_dhcp | length)
+    fail_msg: "One or more DHCP-configured VMs failed to receive an IPv4 address."
+  when: kvm_runners_vms_with_dhcp | length > 0
 
-- name: Show VM network addresses
+- name: Show expected static IPv4 assignments
+  ansible.builtin.debug:
+    msg: "{{ item.name }} expected static IP {{ item.ipv4_address }}/{{ kvm_runners_vm_ipv4_prefix }}"
+  loop: "{{ kvm_runners_vms_with_static_ip }}"
+  when: kvm_runners_vms_with_static_ip | length > 0
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Show DHCP VM network addresses
   ansible.builtin.debug:
     msg: "{{ item.stdout_lines }}"
   loop: "{{ kvm_runners_vm_addresses.results }}"
+  when: kvm_runners_vms_with_dhcp | length > 0
   loop_control:
     label: "{{ item.item.name }}"
