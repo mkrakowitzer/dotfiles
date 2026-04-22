@@ -127,18 +127,61 @@
   loop: "{{ kvm_runners_host_ksm_services }}"
   when: kvm_runners_host_manage_ksm
 
-- name: Read active swap devices
-  ansible.builtin.command: "swapon --show=NAME --noheadings"
-  register: kvm_runners_active_swaps
+- name: Read active swap devices before swapfile reconciliation
+  ansible.builtin.command:
+    argv:
+      - swapon
+      - --show=NAME
+      - --noheadings
+  register: kvm_runners_active_swaps_initial
   changed_when: false
 
-- name: Ensure host swapfiles exist
-  ansible.builtin.command: "fallocate -l {{ item.size }} {{ item.path }}"
-  args:
-    creates: "{{ item.path }}"
+- name: Collect current host swapfile sizes
+  ansible.builtin.stat:
+    path: "{{ item.path }}"
+  register: kvm_runners_swapfile_stats
   loop: "{{ kvm_runners_host_swapfiles }}"
   loop_control:
     label: "{{ item.path }}"
+
+- name: Disable active host swapfiles before resizing
+  ansible.builtin.command:
+    argv:
+      - swapoff
+      - "{{ item.item.path }}"
+  when:
+    - item.item.path in (kvm_runners_active_swaps_initial.stdout_lines | default([]))
+    - (item.stat.exists | default(false)) and
+      ((item.stat.size | default(0) | int) != (item.item.size | human_to_bytes | int))
+  loop: "{{ kvm_runners_swapfile_stats.results }}"
+  loop_control:
+    label: "{{ item.item.path }}"
+
+- name: Ensure host swapfiles are at desired size
+  ansible.builtin.command:
+    argv:
+      - truncate
+      - -s
+      - "{{ item.item.size }}"
+      - "{{ item.item.path }}"
+  when: >
+    (not (item.stat.exists | default(false))) or
+    ((item.stat.size | default(0) | int) != (item.item.size | human_to_bytes | int))
+  register: kvm_runners_swapfile_size_updates
+  loop: "{{ kvm_runners_swapfile_stats.results }}"
+  loop_control:
+    label: "{{ item.item.path }}"
+
+- name: Build list of resized host swapfiles
+  ansible.builtin.set_fact:
+    kvm_runners_resized_swapfile_paths: >-
+      {{
+        kvm_runners_swapfile_size_updates.results
+        | default([])
+        | selectattr('changed')
+        | map(attribute='item.item.path')
+        | list
+      }}
 
 - name: Ensure host swapfiles are root-owned and private
   ansible.builtin.file:
@@ -151,7 +194,11 @@
     label: "{{ item.path }}"
 
 - name: Check host swapfile signatures
-  ansible.builtin.command: "file -b {{ item.path }}"
+  ansible.builtin.command:
+    argv:
+      - file
+      - -b
+      - "{{ item.path }}"
   register: kvm_runners_swapfile_signatures
   changed_when: false
   loop: "{{ kvm_runners_host_swapfiles }}"
@@ -159,8 +206,11 @@
     label: "{{ item.path }}"
 
 - name: Initialize host swapfiles
-  ansible.builtin.command: "mkswap {{ item.item.path }}"
-  when: "'swap' not in (item.stdout | lower)"
+  ansible.builtin.command:
+    argv:
+      - mkswap
+      - "{{ item.item.path }}"
+  when: "'swap' not in (item.stdout | lower) or (item.item.path in (kvm_runners_resized_swapfile_paths | default([])))"
   loop: "{{ kvm_runners_swapfile_signatures.results }}"
   loop_control:
     label: "{{ item.item.path }}"
@@ -175,8 +225,22 @@
   loop_control:
     label: "{{ item.path }}"
 
+- name: Read active swap devices after swapfile reconciliation
+  ansible.builtin.command:
+    argv:
+      - swapon
+      - --show=NAME
+      - --noheadings
+  register: kvm_runners_active_swaps
+  changed_when: false
+
 - name: Enable host swapfiles immediately
-  ansible.builtin.command: "swapon -p {{ item.priority | default(-3) }} {{ item.path }}"
+  ansible.builtin.command:
+    argv:
+      - swapon
+      - -p
+      - "{{ item.priority | default(-3) | string }}"
+      - "{{ item.path }}"
   when: item.path not in (kvm_runners_active_swaps.stdout_lines | default([]))
   loop: "{{ kvm_runners_host_swapfiles }}"
   loop_control:
