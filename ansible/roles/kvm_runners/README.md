@@ -45,6 +45,8 @@ Key variables:
 - `kvm_runners_vm_packages`: in-guest packages installed by cloud-init
 - `kvm_runners_vm_admin_groups`: admin groups assigned to the VM user
 - `kvm_runners_vm_user_passwordless_sudo`: grant passwordless sudo to VM user (default: `true`)
+- `kvm_runners_host_manage_ksm`: enable `ksm`/`ksmtuned` on supported hosts
+- `kvm_runners_host_swapfiles`: extra host swapfiles created before VM provisioning
 
 By default, the role reads `~/.ssh/id_ed25519.pub` from the control host.
 

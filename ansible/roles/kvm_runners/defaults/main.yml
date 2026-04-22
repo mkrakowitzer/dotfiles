@@ -15,6 +15,15 @@ kvm_runners_os_variant: generic
 kvm_runners_lease_retries: 30
 kvm_runners_lease_delay_seconds: 10
 
+kvm_runners_host_manage_ksm: "{{ ansible_facts.os_family == 'RedHat' }}"
+kvm_runners_host_ksm_services:
+  - ksm
+  - ksmtuned
+kvm_runners_host_swapfiles:
+  - path: /swapfile2
+    size: 8G
+    priority: -3
+
 kvm_runners_vm_ipv4_prefix: 24
 kvm_runners_vm_ipv4_gateway: ""
 kvm_runners_vm_ipv4_dns_servers: []
@@ -69,3 +78,4 @@ kvm_runners_redhat_packages:
   - cloud-utils-growpart
   - bridge-utils
   - genisoimage
+  - ksmtuned

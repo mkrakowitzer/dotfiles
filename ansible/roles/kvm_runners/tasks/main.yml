@@ -66,6 +66,32 @@
       Set kvm_runners_vm_ipv4_gateway, kvm_runners_vm_ipv4_dns_servers, and a valid
       kvm_runners_vm_ipv4_prefix when using per-VM ipv4_address values.
 
+- name: Validate host swapfile definitions
+  ansible.builtin.assert:
+    that:
+      - item.path is defined
+      - item.path | trim | length > 0
+      - item.size is defined
+      - item.size | trim | length > 0
+      - item.priority is not defined or (item.priority | int | string) == (item.priority | string)
+    fail_msg: "Invalid host swapfile definition: {{ item | to_nice_json }}"
+  loop: "{{ kvm_runners_host_swapfiles }}"
+  loop_control:
+    label: "{{ item.path | default('unnamed-swapfile') }}"
+
+- name: Calculate total requested guest memory
+  ansible.builtin.set_fact:
+    kvm_runners_requested_guest_memory_mb: "{{ kvm_runners_vms | map(attribute='memory_mb') | map('int') | sum }}"
+
+- name: Warn when requested guest memory exceeds host physical memory
+  ansible.builtin.debug:
+    msg: >-
+      Requested guest memory totals {{ kvm_runners_requested_guest_memory_mb }} MiB,
+      which exceeds host physical memory of {{ ansible_facts.memtotal_mb }} MiB.
+      This relies on host swap and KSM to absorb overcommit. Consider reducing VM
+      memory_mb allocations if the host remains memory constrained.
+  when: kvm_runners_requested_guest_memory_mb > ansible_facts.memtotal_mb
+
 - name: Install KVM dependencies on Debian hosts
   ansible.builtin.apt:
     name: "{{ kvm_runners_debian_packages }}"
@@ -85,6 +111,69 @@
     state: started
     enabled: true
 
+- name: Ensure KSM services are enabled and running on RedHat hosts
+  ansible.builtin.service:
+    name: "{{ item }}"
+    state: started
+    enabled: true
+  loop: "{{ kvm_runners_host_ksm_services }}"
+  when: kvm_runners_host_manage_ksm
+
+- name: Read active swap devices
+  ansible.builtin.command: "swapon --show=NAME --noheadings"
+  register: kvm_runners_active_swaps
+  changed_when: false
+
+- name: Ensure host swapfiles exist
+  ansible.builtin.command: "fallocate -l {{ item.size }} {{ item.path }}"
+  args:
+    creates: "{{ item.path }}"
+  loop: "{{ kvm_runners_host_swapfiles }}"
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: Ensure host swapfiles are root-owned and private
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    owner: root
+    group: root
+    mode: "0600"
+  loop: "{{ kvm_runners_host_swapfiles }}"
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: Check host swapfile signatures
+  ansible.builtin.command: "file -b {{ item.path }}"
+  register: kvm_runners_swapfile_signatures
+  changed_when: false
+  loop: "{{ kvm_runners_host_swapfiles }}"
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: Initialize host swapfiles
+  ansible.builtin.command: "mkswap {{ item.item.path }}"
+  when: "'swap' not in (item.stdout | lower)"
+  loop: "{{ kvm_runners_swapfile_signatures.results }}"
+  loop_control:
+    label: "{{ item.item.path }}"
+
+- name: Persist host swapfiles in fstab
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    regexp: "^{{ item.path | regex_escape() }}\\s+"
+    line: "{{ item.path }} none swap defaults,pri={{ item.priority | default(-3) }} 0 0"
+    state: present
+  loop: "{{ kvm_runners_host_swapfiles }}"
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: Enable host swapfiles immediately
+  ansible.builtin.command: "swapon -p {{ item.priority | default(-3) }} {{ item.path }}"
+  when: item.path not in (kvm_runners_active_swaps.stdout_lines | default([]))
+  loop: "{{ kvm_runners_host_swapfiles }}"
+  loop_control:
+    label: "{{ item.path }}"
+
 - name: Validate required binaries are available
   ansible.builtin.shell: "command -v {{ item }}"
   args:
@@ -95,6 +184,10 @@
     - virt-install
     - qemu-img
     - genisoimage
+    - fallocate
+    - mkswap
+    - swapon
+    - file
 
 - name: Build effective SSH authorized keys list
   ansible.builtin.set_fact:
