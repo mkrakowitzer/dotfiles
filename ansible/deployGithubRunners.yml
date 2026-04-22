@@ -78,19 +78,21 @@
       ansible.builtin.set_fact:
         github_runner_pinned_host_entries: >-
           {{
-            [
-              {
-                'name': host.name,
-                'ip': host.ipv4_address,
-                'key': (
-                  github_runner_pinned_host_keys.get(host.name)
-                  or github_runner_pinned_host_keys.get(host.ipv4_address)
-                  or ''
-                )
-              }
-              for host in github_runner_discovered_hosts
-            ]
+            (github_runner_pinned_host_entries | default([]))
+            +
+            [{
+              'name': item.name,
+              'ip': item.ipv4_address,
+              'key': (
+                github_runner_pinned_host_keys.get(item.name)
+                or github_runner_pinned_host_keys.get(item.ipv4_address)
+                or ''
+              )
+            }]
           }}
+      loop: "{{ github_runner_discovered_hosts }}"
+      loop_control:
+        label: "{{ item.name }}"
 
     - name: Build list of hosts that require keyscan
       ansible.builtin.set_fact:
