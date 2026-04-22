@@ -66,11 +66,19 @@
       Set kvm_runners_vm_ipv4_gateway, kvm_runners_vm_ipv4_dns_servers, and a valid
       kvm_runners_vm_ipv4_prefix when using per-VM ipv4_address values.
 
+- name: Validate host swapfile definitions list
+  ansible.builtin.assert:
+    that:
+      - kvm_runners_host_swapfiles is sequence
+    fail_msg: "kvm_runners_host_swapfiles must be a list of swapfile definitions."
+
 - name: Validate host swapfile definitions
   ansible.builtin.assert:
     that:
+      - item is mapping
       - item.path is defined
       - item.path | trim | length > 0
+      - item.path is match('^/\\S+$')
       - item.size is defined
       - item.size | trim | length > 0
       - item.priority is not defined or (item.priority | int | string) == (item.priority | string)
